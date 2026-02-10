@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NextMeet | Next-Gen Video Conferencing</title>
+    
+    <link rel="icon" type="image/svg+xml" href="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/solid/bolt.svg">
+    <link rel="manifest" href="zoom/manifest.json">
+    <meta name="theme-color" content="#121212">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="NextMeet">
+    <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/solid/bolt.svg">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation"></script>
+    
+    <link rel="stylesheet" href="zoom/zoom.css">
+
+    <style>
+        /* Rregullime emergjente për dukshmëri dhe klikim */
+        #auth-overlay {
+            pointer-events: all !important;
+            z-index: 100000 !important;
+        }
+        .auth-card {
+            pointer-events: all !important;
+            z-index: 100001 !important;
+            border: 1px solid rgba(255,255,255,0.2) !important;
+        }
+        /* Rregullimi i tekstit që nuk shihej */
+        .visible-slogan {
+            color: rgba(255, 255, 255, 0.7) !important;
+            font-size: 0.85rem;
+        }
+        .visible-version {
+            color: rgba(255, 255, 255, 0.5) !important;
+            font-weight: bold;
+        }
+        .auth-body button, .auth-body a {
+            position: relative;
+            z-index: 100002 !important;
+            cursor: pointer !important;
+        }
+        /* Fix për copyright tag */
+        .copyright-tag-fixed {
+            position: fixed;
+            bottom: 0;
+            start: 0;
+            padding: 10px;
+            color: rgba(255,255,255,0.3);
+            font-size: 10px;
+            pointer-events: none;
+            z-index: 10001;
+        }
+    </style>
+</head>
+<body class="bg-dark text-white">
+
+    <div id="auth-overlay" class="position-fixed inset-0 d-flex align-items-center justify-content-center" style="background: radial-gradient(circle at center, #1a1a1a 0%, #000000 100%);">
+        <div class="card auth-card bg-dark shadow-lg p-4 p-md-5" style="width: 420px; border-radius: 25px; backdrop-filter: blur(15px);">
+            <div class="text-center mb-4">
+                <div class="logo-icon bg-primary rounded-4 mx-auto mb-3 d-flex align-items-center justify-content-center shadow-primary" style="width: 65px; height: 65px; box-shadow: 0 0 25px rgba(13, 110, 253, 0.5);">
+                    <i class="fas fa-bolt text-white fa-2x"></i>
+                </div>
+                <h2 class="fw-bold text-white mb-1" style="letter-spacing: -1.5px;">Next<span class="text-primary">Meet</span></h2>
+                <p class="visible-slogan">Siguri e lartë dhe performancë maksimale</p>
+            </div>
+            
+            <div class="auth-body">
+                <div class="mb-3">
+                    <label class="form-label small text-uppercase fw-bold text-secondary" style="font-size: 10px;">Emri i Përdoruesit</label>
+                    <div class="input-group bg-black rounded-3 border border-secondary border-opacity-50">
+                        <span class="input-group-text bg-transparent border-0 text-secondary"><i class="fas fa-user"></i></span>
+                        <input type="text" id="user-name-input" class="form-control bg-transparent text-white border-0 shadow-none py-2" placeholder="Shkruaj emrin tënd...">
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="form-label small text-uppercase fw-bold text-secondary" style="font-size: 10px;">Fjalëkalimi i Aksesit</label>
+                    <div class="input-group bg-black rounded-3 border border-secondary border-opacity-50">
+                        <span class="input-group-text bg-transparent border-0 text-secondary"><i class="fas fa-lock"></i></span>
+                        <input type="password" id="meeting-pass-input" class="form-control bg-transparent text-white border-0 shadow-none py-2" placeholder="••••••••">
+                    </div>
+                </div>
+                
+                <button type="button" onclick="startMeeting()" class="btn btn-primary w-100 fw-bold py-3 rounded-pill shadow-sm transition-all">
+                    HYR NË TAKIM <i class="fas fa-arrow-right ms-2"></i>
+                </button>
+                
+                <div class="mt-4 text-center">
+                    <div class="d-flex align-items-center justify-content-center gap-3">
+                        <span class="small visible-version">v4.2 Pro</span>
+                        <span class="text-secondary">|</span>
+                        <a href="#" onclick="showHelp()" class="small text-primary text-decoration-none fw-bold">Ndihmë?</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="emoji-rain-container" class="position-fixed inset-0 pointer-events-none" style="z-index: 9999;"></div>
+
+    <div class="main-wrapper d-flex flex-column vh-100">
+        
+        <header class="navbar navbar-dark bg-black border-bottom border-secondary px-4 py-2 shadow-sm">
+            <div class="d-flex align-items-center">
+                <div class="logo-icon bg-primary rounded-3 me-2 d-flex align-items-center justify-content-center" style="width: 35px; height: 35px; box-shadow: 0 0 15px rgba(13, 110, 253, 0.4);">
+                    <i class="fas fa-bolt text-white"></i>
+                </div>
+                <span class="fw-bold fs-4 tracking-tight" style="letter-spacing: -1px;">Next<span class="text-primary">Meet</span></span>
+                
+                <div id="network-status" class="ms-4 d-flex align-items-center bg-dark border border-secondary rounded-pill px-3 py-1" title="Network Health">
+                    <div id="network-dot" class="rounded-circle me-2" style="width: 8px; height: 8px; background-color: #00e676; box-shadow: 0 0 8px #00e676;"></div>
+                    <span class="small fw-medium text-white" id="network-text">Lidhja: Super</span>
+                </div>
+
+                <span id="recording-status" class="badge bg-danger ms-3 d-none animate-pulse">● REC</span>
+                <span id="hand-count" class="badge bg-warning text-dark ms-2 d-none"><i class="fas fa-hand-paper"></i> <span id="queue-pos">0</span> në radhë</span>
+            </div>
+
+            <div class="d-flex align-items-center bg-dark rounded-pill px-3 py-1 border border-secondary shadow-sm">
+                <span class="text-secondary small me-2">ID JUAJ:</span>
+                <code id="my-id" class="text-info me-2 fw-bold">Duke u lidhur...</code>
+                <button onclick="copyMyId()" class="btn btn-sm btn-link text-white p-0" title="Kopjo ID"><i class="far fa-copy"></i></button>
+            </div>
+
+            <div class="d-flex gap-2 align-items-center">
+                <div class="me-2" title="Theme Color">
+                    <input type="color" id="theme-color-picker" class="form-control form-control-color border-0 bg-transparent" value="#0d6efd" onchange="updateThemeColor(this.value)">
+                </div>
+
+                <div class="form-check form-switch mt-1 me-2" title="Kurseni internetin">
+                    <input class="form-check-input" type="checkbox" id="low-bandwidth-toggle" onclick="toggleLowBandwidth()">
+                    <label class="form-check-label small text-muted" for="low-bandwidth-toggle">Low-Data</label>
+                </div>
+                <input type="text" id="remote-id-input" class="form-control form-control-sm bg-black text-white border-secondary shadow-none" style="width: 150px;" placeholder="ID e Partnerit">
+                <button id="connect-btn" class="btn btn-primary btn-sm px-4 rounded-pill shadow fw-bold">LIDHU</button>
+            </div>
+        </header>
+
+        <div class="d-flex flex-grow-1 overflow-hidden position-relative">
+            
+            <aside id="participants-panel" class="bg-black border-end border-secondary d-flex flex-column shadow-lg" style="width: 250px;">
+                <div class="p-3 border-bottom border-secondary bg-dark">
+                    <h6 class="mb-0 fw-bold small text-uppercase tracking-wider text-secondary">Pjesëmarrësit</h6>
+                </div>
+                <div id="participants-list" class="flex-grow-1 p-2 overflow-auto custom-scroll">
+                    <div class="d-flex align-items-center p-2 mb-1 rounded bg-secondary bg-opacity-10" id="local-participant">
+                        <div class="avatar-sm bg-primary rounded-circle me-2 d-flex align-items-center justify-content-center small fw-bold text-white">TI</div>
+                        <span class="flex-grow-1 small">Ti (Moderator)</span>
+                        <span class="hand-icon d-none text-warning me-2"><i class="fas fa-hand-paper"></i></span>
+                        <i class="fas fa-microphone text-muted small"></i>
+                    </div>
+                </div>
+                <div class="p-3 border-top border-secondary bg-dark shadow-lg">
+                    <h6 class="small fw-bold text-info"><i class="fas fa-poll me-2"></i>Sondazh Live</h6>
+                    <div id="poll-area">
+                        <p class="x-small text-muted mb-2">Merrni opinionin e grupit menjëherë.</p>
+                        <button onclick="startPoll()" class="btn btn-sm btn-outline-info w-100 rounded-pill">Krijo Sondazh</button>
+                    </div>
+                </div>
+            </aside>
+
+            <main class="flex-grow-1 d-flex flex-column position-relative bg-black">
+                <div id="lobby-modal" class="position-absolute top-0 start-50 translate-middle-x mt-3 bg-dark border border-primary p-3 rounded shadow-lg d-none" style="z-index: 2000; width: 350px; border-left: 5px solid #0d6efd !important;">
+                    <div class="d-flex align-items-center">
+                        <div class="spinner-grow text-primary spinner-grow-sm me-3"></div>
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1 small fw-bold text-white">Kërkesë Hyrjeje</h6>
+                            <p class="mb-0 x-small text-muted">ID: <span id="pending-peer-id" class="text-info">...</span> dëshiron t'i bashkohet takimit.</p>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button onclick="lobbyDecision(true)" class="btn btn-sm btn-success rounded-circle"><i class="fas fa-check"></i></button>
+                            <button onclick="lobbyDecision(false)" class="btn btn-sm btn-danger rounded-circle"><i class="fas fa-times"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="caption-box" class="position-absolute w-100 text-center d-none" style="bottom: 30px; z-index: 100;">
+                    <span class="bg-black bg-opacity-75 px-4 py-2 rounded-pill border border-secondary text-info fw-light shadow-lg" id="caption-text">Duke dëgjuar...</span>
+                </div>
+
+                <div id="video-grid" class="flex-grow-1 d-flex flex-wrap align-items-center justify-content-center p-4 gap-3 overflow-auto custom-scroll">
+                    <div class="video-item" id="local-wrapper">
+                        <canvas id="local-canvas" class="w-100 h-100 d-none"></canvas>
+                        <video id="local-video" autoplay muted playsinline></video>
+                        <div id="reaction-container-local" class="reaction-float"></div>
+                        <div class="video-info">
+                            <span class="badge bg-primary me-1">LIVE</span>
+                            <span id="local-name-display">Ti</span>
+                        </div>
+                    </div>
+                    
+                    <div class="video-item" id="remote-wrapper">
+                        <video id="remote-video" autoplay playsinline></video>
+                        <div id="reaction-container-remote" class="reaction-float"></div>
+                        <div class="video-info">
+                            <span class="badge bg-secondary me-1">PARTNERI</span>
+                        </div>
+                        <div id="waiting-overlay" class="waiting bg-black bg-opacity-50 backdrop-blur">
+                            <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;"></div>
+                            <span class="fw-light">Duke pritur lidhjen në NextMeet...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="whiteboard-overlay" class="position-absolute inset-0 bg-white d-none" style="z-index: 200;">
+                    <div class="d-flex justify-content-between align-items-center p-2 bg-dark text-white">
+                        <span class="fw-bold"><i class="fas fa-chalkboard me-2 text-primary"></i> NextMeet Canvas</span>
+                        <div class="d-flex gap-2">
+                            <input type="color" id="pen-color" class="form-control form-control-color bg-transparent border-0" value="#0d6efd">
+                            <button class="btn btn-sm btn-outline-danger px-3" onclick="clearBoard()">Fshi</button>
+                            <button class="btn btn-sm btn-primary px-3" onclick="toggleWhiteboard()">Mbyll</button>
+                        </div>
+                    </div>
+                    <canvas id="whiteboard-canvas" class="w-100 h-100" style="cursor: crosshair; background-color: #f8f9fa;"></canvas>
+                </div>
+            </main>
+
+            <aside id="chat-panel" class="bg-black border-start border-secondary d-flex flex-column shadow-lg" style="width: 320px;">
+                <div class="p-3 border-bottom border-secondary d-flex justify-content-between align-items-center bg-dark">
+                    <h6 class="mb-0 fw-bold small text-uppercase tracking-wider">Biseda Live</h6>
+                    <button class="btn btn-xs btn-primary rounded-pill px-2" onclick="downloadSummary()" style="font-size: 10px;">
+                        <i class="fas fa-robot me-1"></i> AI SUMMARY
+                    </button>
+                </div>
+                <div id="chat-messages" class="flex-grow-1 p-3 overflow-auto custom-scroll"></div>
+                <div class="p-3 border-top border-secondary bg-dark">
+                    <div class="input-group bg-black rounded-pill p-1 border border-secondary">
+                        <input type="text" id="chat-input" class="form-control bg-transparent text-white border-0 shadow-none ps-3" placeholder="Shkruaj diçka...">
+                        <button id="send-chat" class="btn btn-primary rounded-circle" style="width: 35px; height: 35px; padding: 0;"><i class="fas fa-paper-plane" style="font-size: 12px;"></i></button>
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+        <footer class="controls-bar d-flex justify-content-between align-items-center bg-black border-top border-secondary px-4 py-3">
+            <div class="d-flex gap-2">
+                <div class="btn-group shadow-sm bg-dark rounded-3 p-1">
+                    <button id="mic-btn" class="btn btn-control-main border-0">
+                        <i class="fas fa-microphone"></i>
+                        <span class="btn-label">Mute</span>
+                    </button>
+                    <button id="camera-btn" class="btn btn-control-main border-0">
+                        <i class="fas fa-video"></i>
+                        <span class="btn-label">Video</span>
+                    </button>
+                </div>
+                
+                <div class="dropup">
+                    <button class="btn btn-control-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                        <i class="fas fa-magic text-info"></i>
+                        <span class="btn-label">AI Sfondi</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-dark bg-black border-secondary p-2 shadow-lg">
+                        <li><button class="dropdown-item rounded" onclick="setVirtualBg('none')">Pa sfond</button></li>
+                        <li><button class="dropdown-item rounded" onclick="setVirtualBg('blur')">Mjegullim (Blur)</button></li>
+                        <li><button class="dropdown-item rounded" onclick="setVirtualBg('office')">Zyre Profesionale</button></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="d-flex gap-3 align-items-center bg-dark bg-opacity-50 px-3 py-1 rounded-pill border border-secondary border-opacity-25">
+                <button id="share-btn" class="btn btn-control-secondary text-info border-0">
+                    <i class="fas fa-desktop"></i>
+                    <span class="btn-label">Share</span>
+                </button>
+                
+                <button onclick="raiseHand()" class="btn btn-control-secondary text-warning border-0" id="hand-btn">
+                    <i class="fas fa-hand-paper"></i>
+                    <span class="btn-label">Dora</span>
+                </button>
+
+                <button onclick="toggleWhiteboard()" class="btn btn-control-secondary text-white border-0">
+                    <i class="fas fa-chalkboard"></i>
+                    <span class="btn-label">Tabela</span>
+                </button>
+
+                <button id="record-btn" class="btn btn-control-secondary border-0">
+                    <i class="fas fa-circle text-danger"></i>
+                    <span class="btn-label">REC</span>
+                </button>
+
+                <div class="dropup">
+                    <button class="btn btn-control-secondary dropdown-toggle border-0" data-bs-toggle="dropdown">
+                        <i class="far fa-face-smile text-warning"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-dark bg-black border-secondary p-2 mb-3 shadow">
+                        <div class="d-flex gap-2 p-1">
+                            <button onclick="sendReaction('✋')" class="btn btn-dark">✋</button>
+                            <button onclick="sendReaction('❤️')" class="btn btn-dark">❤️</button>
+                            <button onclick="sendReaction('👏')" class="btn btn-dark">👏</button>
+                            <button onclick="sendReaction('😂')" class="btn btn-dark">😂</button>
+                        </div>
+                    </ul>
+                </div>
+            </div>
+
+            <div>
+                <button class="btn btn-danger px-4 py-2 rounded-pill fw-bold shadow-lg" onclick="leaveMeeting()">
+                    MBYLL TAKIMIN
+                </button>
+            </div>
+        </footer>
+    </div>
+
+    <div class="copyright-tag-fixed">
+        NextMeet Live © 2026 | Ensar Gashi
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Regjistrimi i Service Worker (Nga folderi zoom/)
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('zoom/sw.js')
+                    .then(reg => console.log('NextMeet SW Registered!'))
+                    .catch(err => console.error('SW Registration Failed:', err));
+            });
+        }
+
+        // Funksioni Ndihmë
+        function showHelp() {
+            alert("Për të hyrë në takimin NextMeet:\n1. Shkruani emrin tuaj.\n2. Fjalëkalimi është: 1234");
+        }
+    </script>
+
+    <script src="zoom/zoom.js"></script>
+</body>
+</html>
