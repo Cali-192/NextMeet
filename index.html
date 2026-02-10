@@ -2,25 +2,22 @@
 <html lang="sq">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>NextMeet | Next-Gen Video Conferencing</title>
-    
     <link rel="icon" type="image/svg+xml" href="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/solid/bolt.svg">
-    <link rel="manifest" href="zoom/manifest.json">
-    <meta name="theme-color" content="#121212">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="NextMeet">
-    <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/solid/bolt.svg">
 
+<link rel="manifest" href="manifest.json">
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="NextMeet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation"></script>
     
-    <link rel="stylesheet" href="zoom/zoom.css">
-
+    <link rel="stylesheet" href="zoom.css">
     <style>
         /* Rregullime emergjente për dukshmëri dhe klikim */
         #auth-overlay {
@@ -45,17 +42,6 @@
             position: relative;
             z-index: 100002 !important;
             cursor: pointer !important;
-        }
-        /* Fix për copyright tag */
-        .copyright-tag-fixed {
-            position: fixed;
-            bottom: 0;
-            start: 0;
-            padding: 10px;
-            color: rgba(255,255,255,0.3);
-            font-size: 10px;
-            pointer-events: none;
-            z-index: 10001;
         }
     </style>
 </head>
@@ -167,6 +153,7 @@
             </aside>
 
             <main class="flex-grow-1 d-flex flex-column position-relative bg-black">
+                
                 <div id="lobby-modal" class="position-absolute top-0 start-50 translate-middle-x mt-3 bg-dark border border-primary p-3 rounded shadow-lg d-none" style="z-index: 2000; width: 350px; border-left: 5px solid #0d6efd !important;">
                     <div class="d-flex align-items-center">
                         <div class="spinner-grow text-primary spinner-grow-sm me-3"></div>
@@ -309,28 +296,17 @@
         </footer>
     </div>
 
-    <div class="copyright-tag-fixed">
+    <div class="position-fixed bottom-0 start-0 p-2 text-white-50 small" style="z-index: 10001; font-size: 10px; pointer-events: none;">
         NextMeet Live © 2026 | Ensar Gashi
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
     <script>
-        // Regjistrimi i Service Worker (Nga folderi zoom/)
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('zoom/sw.js')
-                    .then(reg => console.log('NextMeet SW Registered!'))
-                    .catch(err => console.error('SW Registration Failed:', err));
-            });
-        }
-
-        // Funksioni Ndihmë
+        // Funksioni Ndihmë (Shtuar direkt këtu për siguri)
         function showHelp() {
             alert("Për të hyrë në takimin NextMeet:\n1. Shkruani emrin tuaj.\n2. Fjalëkalimi është: 1234");
         }
     </script>
-
-    <script src="zoom/zoom.js"></script>
+    <script src="zoom.js"></script>
 </body>
 </html>
