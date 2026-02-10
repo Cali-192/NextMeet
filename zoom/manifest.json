@@ -1,6 +1,7 @@
 {
   "short_name": "NextMeet",
   "name": "NextMeet Live Video",
+  "description": "Next-Gen Video Conferencing by Ensar Gashi",
   "icons": [
     {
       "src": "https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/solid/bolt.svg",
@@ -9,8 +10,10 @@
       "purpose": "any maskable"
     }
   ],
-  "start_url": ".",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "theme_color": "#121212",
-  "background_color": "#121212"
+  "orientation": "portrait-primary",
+  "theme_color": "#000000",
+  "background_color": "#000000"
 }
