@@ -11,6 +11,7 @@ let isMicOn = true;
 let isCamOn = true;
 let screenStream = null;
 let isRecording = false;
+let captionsActive = false;
 
 // Variablat për Record, AI Blur dhe Whiteboard
 let mediaRecorder;
@@ -19,6 +20,7 @@ let selfieSegmentation;
 let isBlurActive = false;
 let canvasElement, canvasCtx;
 let wbCanvas, wbCtx, drawing = false;
+let recognition; // Për Captions
 
 // --- KONFIGURIMI I PEERJS ---
 const peer = new Peer(undefined, {
@@ -72,7 +74,7 @@ async function initMedia() {
         const localVideo = document.getElementById('local-video');
         if (localVideo) {
             localVideo.srcObject = stream;
-            localVideo.muted = true;
+            localVideo.muted = true; // FIX: Mbron nga zhurma (Feedback Loop)
             localVideo.play().catch(e => console.warn("Video blocked"));
         }
         
@@ -134,7 +136,7 @@ window.lobbyDecision = function(accepted) {
             if (remoteVideo) {
                 remoteVideo.srcObject = userStream;
                 const waiting = document.getElementById('waiting-overlay');
-                if (waiting) waiting.classList.add('d-none');
+                if (waiting) waiting.classList.add('hidden'); // FIX: Zhduk overlay-n e pritjes
             }
         });
 
@@ -143,7 +145,7 @@ window.lobbyDecision = function(accepted) {
     }
 };
 
-// --- 4. Inicializimi i Eventeve & Butonat e Ri ---
+// --- 4. Inicializimi i Eventeve ---
 document.addEventListener('DOMContentLoaded', () => {
     const connectBtn = document.getElementById('connect-btn');
     if (connectBtn) {
@@ -156,13 +158,13 @@ document.addEventListener('DOMContentLoaded', () => {
             currentPeerCall = call;
             
             const waiting = document.getElementById('waiting-overlay');
-            if (waiting) waiting.classList.remove('d-none');
+            if (waiting) waiting.classList.remove('hidden');
 
             call.on('stream', s => { 
                 const remoteVideo = document.getElementById('remote-video');
                 if (remoteVideo) {
                     remoteVideo.srcObject = s; 
-                    if (waiting) waiting.classList.add('d-none');
+                    if (waiting) waiting.classList.add('hidden'); // FIX: Zhduk overlay-n
                 }
             });
 
@@ -186,7 +188,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // --- FUNKSIONET E KONTROLLIT TË BUTONAVE ---
 
-// Butoni 1 & 2: Mic & Cam
 window.toggleMic = function() {
     if (!myStream) return;
     isMicOn = !isMicOn;
@@ -209,7 +210,6 @@ window.toggleCam = function() {
     }
 };
 
-// Butoni 3: Share Screen
 window.toggleScreenShare = async function() {
     try {
         if (!screenStream) {
@@ -244,7 +244,6 @@ function stopScreenShare() {
     document.getElementById('screen-btn').classList.remove('btn-primary');
 }
 
-// Butoni 4: Whiteboard
 window.toggleWhiteboard = function() {
     const wb = document.getElementById('whiteboard-overlay');
     const isVisible = wb.style.display === 'flex';
@@ -252,13 +251,11 @@ window.toggleWhiteboard = function() {
     if (!isVisible) setupWhiteboard();
 };
 
-// Butoni 5: Participants
 window.toggleParticipants = function() {
     const panel = document.getElementById('participants-panel');
     panel.classList.toggle('d-none');
 };
 
-// Butoni 6: AI Blur
 window.toggleBlur = function() {
     if (typeof SelfieSegmentation === 'undefined') return alert("Libraria AI po ngarkohet...");
     isBlurActive = !isBlurActive;
@@ -267,27 +264,59 @@ window.toggleBlur = function() {
     if (!isBlurActive) document.getElementById('local-video').srcObject = myStream;
 };
 
-// Butoni 7: Record (Rrethi i Kuq)
+// FIX: Butoni 8 - Captions (Live Speech to Text)
+window.toggleCaptions = function() {
+    const btn = document.getElementById('caption-btn');
+    if (!('webkitSpeechRecognition' in window)) {
+        return alert("Shfletuesi nuk mbështet Captions. Përdorni Chrome.");
+    }
+
+    if (!captionsActive) {
+        recognition = new webkitSpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'sq-AL'; 
+
+        recognition.onresult = (event) => {
+            const result = event.results[event.results.length - 1][0].transcript;
+            console.log("Speech:", result);
+            // Këtu mund të shtohet një div që shfaq tekstin mbi video
+        };
+
+        recognition.start();
+        captionsActive = true;
+        btn.classList.add('btn-active-blue');
+    } else {
+        recognition.stop();
+        captionsActive = false;
+        btn.classList.remove('btn-active-blue');
+    }
+};
+
+// FIX: Butoni 9 - Record (Regjistrim Takimi)
 window.toggleRecord = function() {
     if (!isRecording) {
         recordedChunks = [];
+        // Regjistrojmë rrymën e videos lokale (mund të shtohet edhe remoteStream)
         mediaRecorder = new MediaRecorder(myStream);
-        mediaRecorder.ondataavailable = (e) => recordedChunks.push(e.data);
+        mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) recordedChunks.push(e.data);
+        };
         mediaRecorder.onstop = () => {
             const blob = new Blob(recordedChunks, { type: "video/webm" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
-            a.href = url; a.download = "NextMeet_Record.webm"; a.click();
+            a.href = url;
+            a.download = `NextMeet_Rec_${Date.now()}.webm`;
+            a.click();
         };
         mediaRecorder.start();
         isRecording = true;
-        document.getElementById('record-btn').classList.add('btn-danger');
-        alert("Regjistrimi nisi!");
+        document.getElementById('record-btn').classList.add('recording-active');
     } else {
         mediaRecorder.stop();
         isRecording = false;
-        document.getElementById('record-btn').classList.remove('btn-danger');
-        alert("Regjistrimi u ruajt!");
+        document.getElementById('record-btn').classList.remove('recording-active');
     }
 };
 
@@ -321,6 +350,7 @@ function setupDataListeners() {
         if (data.type === 'chat') appendMessage(data.msg, 'remote', data.user);
         if (data.type === 'reaction') showReaction(data.emoji, 'remote');
         if (data.type === 'draw') {
+            if(!wbCtx) return;
             wbCtx.strokeStyle = data.color;
             wbCtx.lineTo(data.x, data.y);
             wbCtx.stroke();
@@ -338,12 +368,13 @@ function appendMessage(msg, sender, remoteUser = "Partneri") {
 }
 
 window.copyMyId = function() {
-    const id = document.getElementById('my-id').innerText;
+    const idDisplay = document.getElementById('my-id');
+    const id = idDisplay ? idDisplay.innerText : "";
     navigator.clipboard.writeText(id).then(() => alert("ID u kopjua!"));
 };
 
 window.sendReaction = function(emoji) {
-    if(dataConn?.open) dataConn.send({type: 'reaction', emoji: emoji});
+    if(dataConn && dataConn.open) dataConn.send({type: 'reaction', emoji: emoji});
     showReaction(emoji, 'local');
 };
 
@@ -353,10 +384,11 @@ function showReaction(emoji, origin) {
     const el = document.createElement('div');
     el.innerText = emoji;
     el.className = 'reaction-animate';
-    const randomOffset = Math.floor(Math.random() * 40) - 20;
+    // Pozicionim i rastësishëm horizontal për stil
+    const randomOffset = Math.floor(Math.random() * 60) - 30;
     el.style.left = `calc(50% + ${randomOffset}px)`;
     container.appendChild(el);
-    setTimeout(() => el.remove(), 2500);
+    setTimeout(() => el.remove(), 2000);
 }
 
 function playNotificationSound() {
