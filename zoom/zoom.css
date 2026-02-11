@@ -441,3 +441,24 @@ video, canvas#local-canvas {
     .controls-bar { min-height: 60px; padding: 5px; }
     .btn-control-main, .btn-control-secondary { height: 45px; }
 }
+/* Animacioni i Reagimeve */
+.reaction-animate {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 2rem;
+    animation: flyUp 2s forwards;
+    pointer-events: none;
+    z-index: 10;
+}
+
+@keyframes flyUp {
+    0% { bottom: 20px; opacity: 1; transform: translateX(-50%) scale(1); }
+    100% { bottom: 200px; opacity: 0; transform: translateX(-50%) scale(1.5); }
+}
+
+.video-item {
+    position: relative; /* Kjo duhet që reagimet të rrinë brenda kornizës së videos */
+}
+
