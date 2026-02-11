@@ -54,18 +54,22 @@
             backdrop-filter: blur(15px);
         }
 
-        /* Reaksionet */
+        /* FIX: Reaksionet te rregulluara */
         .reaction-animate {
             position: absolute;
-            font-size: 2.5rem;
+            bottom: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 3rem;
             pointer-events: none;
-            animation: flyUp 2.5s ease-out forwards;
+            animation: flyUp 2s ease-out forwards;
             z-index: 2000;
         }
 
         @keyframes flyUp {
-            0% { transform: translateY(0) scale(1); opacity: 1; }
-            100% { transform: translateY(-300px) scale(1.8); opacity: 0; }
+            0% { transform: translate(-50%, 0) scale(0.5); opacity: 0; }
+            20% { opacity: 1; }
+            100% { transform: translate(-50%, -250px) scale(1.5); opacity: 0; }
         }
 
         .video-item {
@@ -85,6 +89,15 @@
             height: 100%;
             object-fit: cover;
             border-radius: 15px;
+        }
+
+        #waiting-overlay {
+            transition: opacity 0.3s ease;
+            z-index: 10;
+        }
+        
+        #waiting-overlay.hidden {
+            display: none !important;
         }
 
         #whiteboard-overlay {
@@ -109,7 +122,11 @@
             box-shadow: 0 0 8px #00e676;
         }
 
-        /* Chat Styles */
+        /* Klasa per butonat aktive */
+        .btn-active-blue { background-color: #0d6efd !important; color: white !important; }
+        .recording-active { animation: pulse-red 1.5s infinite; background-color: #dc3545 !important; color: white !important; }
+        @keyframes pulse-red { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
         .chat-message {
             background: rgba(255,255,255,0.1);
             margin-bottom: 10px;
@@ -231,21 +248,24 @@
                 </div>
 
                 <div id="video-grid" class="flex-grow-1 d-flex flex-wrap align-items-center justify-content-center p-3 gap-3 overflow-auto">
-                    <div class="video-item">
+                    <div class="video-item" id="local-video-container">
                         <video id="local-video" autoplay muted playsinline></video>
                         <div class="position-absolute bottom-0 start-0 p-2 w-100" style="background: linear-gradient(transparent, rgba(0,0,0,0.8));">
                             <span class="small fw-bold" id="local-name-display">Ti</span>
                         </div>
-                        <div id="reaction-container-local" style="position: absolute; inset: 0; pointer-events: none;"></div>
+                        <div id="reaction-container-local" class="reaction-container-box" style="position: absolute; inset: 0; pointer-events: none;"></div>
                     </div>
                     
-                    <div class="video-item">
+                    <div class="video-item" id="remote-video-container">
                         <video id="remote-video" autoplay playsinline></video>
                         <div id="waiting-overlay" class="position-absolute inset-0 d-flex flex-column align-items-center justify-content-center bg-dark">
                             <div class="spinner-border text-primary mb-2"></div>
                             <p class="small text-secondary">Duke pritur partnerin...</p>
                         </div>
-                        <div id="reaction-container-remote" style="position: absolute; inset: 0; pointer-events: none;"></div>
+                        <div class="position-absolute bottom-0 start-0 p-2 w-100" style="background: linear-gradient(transparent, rgba(0,0,0,0.8));">
+                            <span class="small fw-bold" id="remote-name-display">Partneri</span>
+                        </div>
+                        <div id="reaction-container-remote" class="reaction-container-box" style="position: absolute; inset: 0; pointer-events: none;"></div>
                     </div>
                 </div>
             </main>
@@ -273,6 +293,9 @@
                 <button id="participants-btn" onclick="toggleParticipants()" class="btn btn-dark rounded-circle p-3"><i class="fas fa-users"></i></button>
                 <button id="chat-btn" onclick="toggleChat()" class="btn btn-dark rounded-circle p-3"><i class="fas fa-comment-alt"></i></button>
                 <button id="blur-btn" onclick="toggleBlur()" class="btn btn-dark rounded-circle p-3"><i class="fas fa-user-shield"></i></button>
+                
+                <button id="caption-btn" onclick="toggleCaptions()" class="btn btn-dark rounded-circle p-3"><i class="fas fa-closed-captioning"></i></button>
+                
                 <button id="record-btn" onclick="toggleRecord()" class="btn btn-dark rounded-circle p-3 text-danger"><i class="fas fa-circle"></i></button>
             </div>
 
