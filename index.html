@@ -7,7 +7,7 @@
     
     <link rel="icon" type="image/svg+xml" href="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/solid/bolt.svg">
     <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/solid/bolt.svg">
-    <link rel="manifest" href="/zoom/manifest.json">
+    <link rel="manifest" href="zoom/manifest.json">
 
     <meta name="theme-color" content="#000000">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -21,76 +21,84 @@
     
     <link rel="stylesheet" href="zoom/zoom.css">
     <style>
-        /* Rregullime për t'u përshtatur në çdo ekran (Responsive) */
         html, body {
             height: 100%;
             margin: 0;
             padding: 0;
             overflow: hidden; 
             background-color: #000;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
 
         #auth-overlay {
             position: fixed;
             inset: 0;
-            display: flex !important;
+            display: flex;
             align-items: center;
             justify-content: center;
-            z-index: 100000 !important;
+            z-index: 100000;
             background: radial-gradient(circle at center, #1a1a1a 0%, #000000 100%);
-            pointer-events: all !important;
             padding: 20px;
         }
 
         .auth-card {
-            position: relative;
-            z-index: 100001 !important;
-            pointer-events: all !important;
-            border: 1px solid rgba(255,255,255,0.2) !important;
+            border: 1px solid rgba(255,255,255,0.2);
             max-width: 100%;
             width: 420px;
             background: rgba(20, 20, 20, 0.95);
+            border-radius: 25px;
+            backdrop-filter: blur(15px);
         }
 
         .visible-slogan {
-            color: rgba(255, 255, 255, 0.7) !important;
+            color: rgba(255, 255, 255, 0.7);
             font-size: 0.85rem;
         }
-        .visible-version {
-            color: rgba(255, 255, 255, 0.5) !important;
-            font-weight: bold;
-        }
 
-        /* SIGURON QË BUTONI DHE INPUTET JANË TË PREKSHME */
-        .auth-body button, 
-        .auth-body input {
-            position: relative;
-            z-index: 100005 !important;
-            cursor: pointer !important;
-            pointer-events: all !important;
-            touch-action: manipulation;
+        .visible-version {
+            color: rgba(255, 255, 255, 0.5);
+            font-weight: bold;
         }
 
         #emoji-rain-container {
             position: fixed;
             inset: 0;
-            pointer-events: none !important;
+            pointer-events: none;
             z-index: 9999;
-        }
-
-        footer.controls-bar {
-            padding-bottom: calc(1rem + env(safe-area-inset-bottom)) !important;
         }
 
         .shadow-primary {
             box-shadow: 0 0 25px rgba(13, 110, 253, 0.5);
+        }
+
+        /* Perdoruesi ne liste */
+        .participant-item {
+            background: rgba(255, 255, 255, 0.05);
+            transition: all 0.2s ease;
+        }
+
+        .video-item {
+            position: relative;
+            background: #111;
+            border-radius: 15px;
+            overflow: hidden;
+            flex: 1;
+            min-width: 300px;
+            max-width: 600px;
+            aspect-ratio: 16/9;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
     </style>
 </head>
 <body class="bg-dark text-white">
 
     <div id="auth-overlay">
-        <div class="card auth-card bg-dark shadow-lg p-4 p-md-5" style="border-radius: 25px; backdrop-filter: blur(15px);">
+        <div class="card auth-card shadow-lg p-4 p-md-5">
             <div class="text-center mb-4">
                 <div class="logo-icon bg-primary rounded-4 mx-auto mb-3 d-flex align-items-center justify-content-center shadow-primary" style="width: 65px; height: 65px;">
                     <i class="fas fa-bolt text-white fa-2x"></i>
@@ -113,11 +121,11 @@
                         <label class="form-label small text-uppercase fw-bold text-secondary" style="font-size: 10px;">Fjalëkalimi i Aksesit (1234)</label>
                         <div class="input-group bg-black rounded-3 border border-secondary border-opacity-50">
                             <span class="input-group-text bg-transparent border-0 text-secondary"><i class="fas fa-lock"></i></span>
-                            <input type="password" id="meeting-pass-input" class="form-control bg-transparent text-white border-0 shadow-none py-2" placeholder="••••••••" required>
+                            <input type="password" id="meeting-pass-input" class="form-control bg-transparent text-white border-0 shadow-none py-2" placeholder="••••" required>
                         </div>
                     </div>
                     
-                    <button type="button" id="start-btn" onclick="startMeeting()" class="btn btn-primary w-100 fw-bold py-3 rounded-pill shadow-sm transition-all">
+                    <button type="button" id="start-btn" onclick="startMeeting()" class="btn btn-primary w-100 fw-bold py-3 rounded-pill shadow-sm">
                         HYR NË TAKIM <i class="fas fa-arrow-right ms-2"></i>
                     </button>
                 </form>
@@ -144,45 +152,44 @@
                 </div>
                 <span class="fw-bold fs-4 tracking-tight" style="letter-spacing: -1px;">Next<span class="text-primary">Meet</span></span>
                 
-                <div id="network-status" class="ms-4 d-flex align-items-center bg-dark border border-secondary rounded-pill px-3 py-1">
+                <div id="network-status" class="ms-4 d-flex align-items-center bg-dark border border-secondary rounded-pill px-3 py-1 d-none d-md-flex">
                     <div id="network-dot" class="rounded-circle me-2" style="width: 8px; height: 8px; background-color: #00e676; box-shadow: 0 0 8px #00e676;"></div>
                     <span class="small fw-medium text-white" id="network-text">Lidhja: Super</span>
                 </div>
-                <span id="recording-status" class="badge bg-danger ms-3 d-none animate-pulse">● REC</span>
             </div>
 
-            <div class="d-flex align-items-center bg-dark rounded-pill px-3 py-1 border border-secondary shadow-sm">
-                <span class="text-secondary small me-2">ID JUAJ:</span>
+            <div class="d-flex align-items-center bg-dark rounded-pill px-3 py-1 border border-secondary shadow-sm mx-2">
+                <span class="text-secondary small me-2 d-none d-sm-inline">ID:</span>
                 <code id="my-id" class="text-info me-2 fw-bold">Duke u lidhur...</code>
                 <button onclick="copyMyId()" class="btn btn-sm btn-link text-white p-0"><i class="far fa-copy"></i></button>
             </div>
 
             <div class="d-flex gap-2 align-items-center">
-                <input type="text" id="remote-id-input" class="form-control form-control-sm bg-black text-white border-secondary shadow-none" style="width: 150px;" placeholder="ID e Partnerit">
+                <input type="text" id="remote-id-input" class="form-control form-control-sm bg-black text-white border-secondary shadow-none d-none d-md-block" style="width: 130px;" placeholder="ID e Partnerit">
                 <button id="connect-btn" class="btn btn-primary btn-sm px-4 rounded-pill shadow fw-bold">LIDHU</button>
             </div>
         </header>
 
         <div class="d-flex flex-grow-1 overflow-hidden position-relative">
             
-            <aside id="participants-panel" class="bg-black border-end border-secondary d-flex flex-column shadow-lg" style="width: 250px;">
+            <aside id="participants-panel" class="bg-black border-end border-secondary d-flex flex-column shadow-lg d-none d-lg-flex" style="width: 250px;">
                 <div class="p-3 border-bottom border-secondary bg-dark">
                     <h6 class="mb-0 fw-bold small text-uppercase tracking-wider text-secondary">Pjesëmarrësit</h6>
                 </div>
-                <div id="participants-list" class="flex-grow-1 p-2 overflow-auto custom-scroll">
-                    <div class="d-flex align-items-center p-2 mb-1 rounded bg-secondary bg-opacity-10" id="local-participant">
-                        <div class="avatar-sm bg-primary rounded-circle me-2 d-flex align-items-center justify-content-center small fw-bold text-white">TI</div>
-                        <span class="flex-grow-1 small">Ti (Moderator)</span>
+                <div id="participants-list" class="flex-grow-1 p-2 overflow-auto">
+                    <div class="participant-item d-flex align-items-center p-2 mb-1 rounded" id="local-participant">
+                        <div class="avatar-sm bg-primary rounded-circle me-2 d-flex align-items-center justify-content-center small fw-bold text-white" style="width:30px; height:30px;">TI</div>
+                        <span class="flex-grow-1 small" id="local-participant-name">Ti (Moderator)</span>
                     </div>
                 </div>
             </aside>
 
             <main class="flex-grow-1 d-flex flex-column position-relative bg-black">
-                <div id="lobby-modal" class="position-absolute top-0 start-50 translate-middle-x mt-3 bg-dark border border-primary p-3 rounded shadow-lg d-none" style="z-index: 2000; width: 320px;">
+                <div id="lobby-modal" class="position-absolute top-0 start-50 translate-middle-x mt-3 bg-dark border border-primary p-3 rounded shadow-lg d-none" style="z-index: 2000; width: 300px;">
                     <div class="d-flex align-items-center">
                         <div class="flex-grow-1">
                             <h6 class="mb-1 small fw-bold text-white">Kërkesë Hyrjeje</h6>
-                            <p class="mb-0 x-small text-muted">Dikush dëshiron të hyjë.</p>
+                            <p class="mb-0 small text-muted">Dikush dëshiron të hyjë.</p>
                         </div>
                         <div class="d-flex gap-2">
                             <button onclick="lobbyDecision(true)" class="btn btn-sm btn-success rounded-circle"><i class="fas fa-check"></i></button>
@@ -191,28 +198,31 @@
                     </div>
                 </div>
 
-                <div id="video-grid" class="flex-grow-1 d-flex flex-wrap align-items-center justify-content-center p-4 gap-3 overflow-auto">
+                <div id="video-grid" class="flex-grow-1 d-flex flex-wrap align-items-center justify-content-center p-3 gap-3 overflow-auto">
                     <div class="video-item" id="local-wrapper">
                         <video id="local-video" autoplay muted playsinline></video>
-                        <div class="video-info"><span id="local-name-display">Ti</span></div>
-                        <div id="reaction-container-local"></div>
+                        <div class="position-absolute bottom-0 start-0 p-2 w-100" style="background: linear-gradient(transparent, rgba(0,0,0,0.7));">
+                            <span class="small fw-bold" id="local-name-display">Ti</span>
+                        </div>
+                        <div id="reaction-container-local" class="position-absolute top-50 start-50 translate-middle"></div>
                     </div>
+                    
                     <div class="video-item" id="remote-wrapper">
                         <video id="remote-video" autoplay playsinline></video>
-                        <div id="waiting-overlay" class="waiting text-center">
+                        <div id="waiting-overlay" class="position-absolute inset-0 d-flex flex-column align-items-center justify-content-center bg-dark bg-opacity-50">
                             <div class="spinner-border text-primary mb-2"></div>
                             <p class="small">Duke pritur partnerin...</p>
                         </div>
-                        <div id="reaction-container-remote"></div>
+                        <div id="reaction-container-remote" class="position-absolute top-50 start-50 translate-middle"></div>
                     </div>
                 </div>
             </main>
 
-            <aside id="chat-panel" class="bg-black border-start border-secondary d-flex flex-column shadow-lg" style="width: 320px;">
+            <aside id="chat-panel" class="bg-black border-start border-secondary d-flex flex-column shadow-lg d-none d-md-flex" style="width: 320px;">
                 <div class="p-3 border-bottom border-secondary bg-dark">
                     <h6 class="mb-0 fw-bold small text-uppercase tracking-wider">Biseda Live</h6>
                 </div>
-                <div id="chat-messages" class="flex-grow-1 p-3 overflow-auto custom-scroll"></div>
+                <div id="chat-messages" class="flex-grow-1 p-3 overflow-auto"></div>
                 <div class="p-3 border-top border-secondary bg-dark">
                     <div class="input-group bg-black rounded-pill p-1 border border-secondary">
                         <input type="text" id="chat-input" class="form-control bg-transparent text-white border-0 shadow-none ps-3" placeholder="Shkruaj...">
@@ -224,18 +234,19 @@
 
         <footer class="controls-bar d-flex justify-content-between align-items-center bg-black border-top border-secondary px-4 py-3">
             <div class="d-flex gap-2">
-                <button id="mic-btn" class="btn btn-dark rounded-circle"><i class="fas fa-microphone"></i></button>
-                <button id="camera-btn" class="btn btn-dark rounded-circle"><i class="fas fa-video"></i></button>
+                <button id="mic-btn" class="btn btn-dark rounded-circle p-3"><i class="fas fa-microphone"></i></button>
+                <button id="camera-btn" class="btn btn-dark rounded-circle p-3"><i class="fas fa-video"></i></button>
             </div>
 
-            <div class="d-flex gap-3">
-                <button onclick="sendReaction('❤️')" class="btn btn-outline-secondary rounded-circle">❤️</button>
-                <button onclick="sendReaction('👏')" class="btn btn-outline-secondary rounded-circle">👏</button>
-                <button onclick="sendReaction('😂')" class="btn btn-outline-secondary rounded-circle">😂</button>
+            <div class="d-flex gap-2 gap-md-3">
+                <button onclick="sendReaction('❤️')" class="btn btn-outline-secondary rounded-circle border-0">❤️</button>
+                <button onclick="sendReaction('👏')" class="btn btn-outline-secondary rounded-circle border-0">👏</button>
+                <button onclick="sendReaction('😂')" class="btn btn-outline-secondary rounded-circle border-0">😂</button>
             </div>
 
             <button class="btn btn-danger px-4 py-2 rounded-pill fw-bold" onclick="leaveMeeting()">
-                MBYLL
+                <span class="d-none d-sm-inline">MBYLL TAKIMIN</span>
+                <span class="d-sm-none"><i class="fas fa-phone-slash"></i></span>
             </button>
         </footer>
     </div>
@@ -243,9 +254,9 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         function showHelp() {
-            alert("Emri: Çfarë të dëshironi\nFjalëkalimi: 1234");
+            alert("Aksesimi:\n1. Shkruaj emrin tënd.\n2. Fjalëkalimi është: 1234\n3. Kopjo ID-në tënde dhe dërgoja partnerit.");
         }
     </script>
-   <script src="zoom/zoom.js?v=1.2"></script>
+    <script src="zoom/zoom.js?v=2.1"></script>
 </body>
 </html>
