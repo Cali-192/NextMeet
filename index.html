@@ -31,18 +31,23 @@
         }
 
         #auth-overlay {
+            position: fixed;
+            inset: 0;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            z-index: 100000 !important; /* Siguron që është shtresa më e lartë */
+            background: radial-gradient(circle at center, #1a1a1a 0%, #000000 100%);
             pointer-events: all !important;
-            z-index: 100000 !important;
             padding: 20px;
-            width: 100vw;
-            height: 100vh;
         }
 
         .auth-card {
-            pointer-events: all !important;
+            position: relative;
             z-index: 100001 !important;
+            pointer-events: all !important; /* Lejon klikimet brenda kartës */
             border: 1px solid rgba(255,255,255,0.2) !important;
-            max-width: 100%; /* Siguron që nuk del jashtë ekranit në telefon */
+            max-width: 100%;
             width: 420px;
         }
 
@@ -55,10 +60,24 @@
             color: rgba(255, 255, 255, 0.5) !important;
             font-weight: bold;
         }
-        .auth-body button, .auth-body a {
+
+        /* SIGURON QË BUTONI DHE INPUTET JANË TË PREKSHME */
+        .auth-body button, 
+        .auth-body input, 
+        .auth-body a {
             position: relative;
-            z-index: 100002 !important;
+            z-index: 100005 !important;
             cursor: pointer !important;
+            pointer-events: all !important;
+            touch-action: manipulation;
+        }
+
+        /* NDALON CONTAINERIN E EMOJIVE TË BLLOKOJË KLIKIMET */
+        #emoji-rain-container {
+            position: fixed;
+            inset: 0;
+            pointer-events: none !important; /* Ky është çelësi: lejon klikimin përmes tij */
+            z-index: 9999;
         }
 
         /* Fix për kontrollet në Mobile që të mos mbivendosen me vijën e iPhone/Android */
@@ -69,7 +88,7 @@
 </head>
 <body class="bg-dark text-white">
 
-    <div id="auth-overlay" class="position-fixed inset-0 d-flex align-items-center justify-content-center" style="background: radial-gradient(circle at center, #1a1a1a 0%, #000000 100%);">
+    <div id="auth-overlay">
         <div class="card auth-card bg-dark shadow-lg p-4 p-md-5" style="border-radius: 25px; backdrop-filter: blur(15px);">
             <div class="text-center mb-4">
                 <div class="logo-icon bg-primary rounded-4 mx-auto mb-3 d-flex align-items-center justify-content-center shadow-primary" style="width: 65px; height: 65px; box-shadow: 0 0 25px rgba(13, 110, 253, 0.5);">
@@ -96,7 +115,7 @@
                     </div>
                 </div>
                 
-                <button type="button" onclick="startMeeting()" class="btn btn-primary w-100 fw-bold py-3 rounded-pill shadow-sm transition-all">
+                <button type="button" onclick="startMeeting()" ontouchstart="" class="btn btn-primary w-100 fw-bold py-3 rounded-pill shadow-sm transition-all">
                     HYR NË TAKIM <i class="fas fa-arrow-right ms-2"></i>
                 </button>
                 
@@ -111,7 +130,7 @@
         </div>
     </div>
 
-    <div id="emoji-rain-container" class="position-fixed inset-0 pointer-events-none" style="z-index: 9999;"></div>
+    <div id="emoji-rain-container"></div>
 
     <div class="main-wrapper d-flex flex-column vh-100">
         
