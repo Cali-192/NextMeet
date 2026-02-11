@@ -21,14 +21,14 @@ const peer = new Peer(undefined, {
     debug: 1
 });
 
-// --- 1. LOGIN & AUTHENTICATION (I rregulluar që të punojë fiks) ---
+// --- 1. LOGIN & AUTHENTICATION (Lidhja Globale për Butonin) ---
 window.startMeeting = function() {
     console.log("Tentativa për të hyrë në takim...");
     
     const nameInput = document.getElementById('user-name-input');
     const passInput = document.getElementById('meeting-pass-input');
     const authOverlay = document.getElementById('auth-overlay');
-    const loginBtn = document.querySelector('.auth-body button');
+    const loginBtn = document.getElementById('start-btn'); // Përdorim ID-në e re
     
     if (!nameInput || !passInput) {
         console.error("Elementet e loginit nuk u gjetën!");
@@ -72,15 +72,20 @@ window.startMeeting = function() {
     // Përditëso emrin në UI
     const localPartSpan = document.querySelector('#local-participant span');
     const localPartAvatar = document.querySelector('#local-participant .avatar-sm');
+    const localNameDisplay = document.getElementById('local-name-display');
     
     if (localPartSpan) localPartSpan.innerText = userName + " (Ti)";
     if (localPartAvatar) localPartAvatar.innerText = userName[0].toUpperCase();
+    if (localNameDisplay) localNameDisplay.innerText = userName;
     
     // Aktivizo Audio Context
     if (window.AudioContext || window.webkitAudioContext) {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         if (audioCtx.state === 'suspended') audioCtx.resume();
     }
+
+    // Nis median pasi shtypet butoni (për siguri në mobile)
+    initMedia();
     
     console.log("NextMeet nisi me sukses për: " + userName);
 };
@@ -94,12 +99,23 @@ peer.on('open', id => {
 
 peer.on('error', err => {
     console.error("PeerJS Error:", err.type);
+    if(err.type === 'peer-disconnected') {
+        console.log("U shkëputët nga serveri.");
+    }
 });
 
 // --- 3. Aksesi në Media (Me kontroll gabimesh) ---
 async function initMedia() {
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: {
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                facingMode: "user"
+            }, 
+            audio: true 
+        });
+        
         const localVideo = document.getElementById('local-video');
         
         // Noise Cancellation i thjeshtë
@@ -118,7 +134,10 @@ async function initMedia() {
         ]);
 
         myStream = filteredStream;
-        if (localVideo) localVideo.srcObject = filteredStream;
+        if (localVideo) {
+            localVideo.srcObject = filteredStream;
+            localVideo.muted = true; // Sigurohu që veten mos ta dëgjosh (feedback loop)
+        }
         
         setupVoiceDetection(filteredStream, 'local-wrapper');
 
@@ -131,7 +150,7 @@ async function initMedia() {
             playNotificationSound(); 
         });
 
-        // Setup AI Background
+        // Setup AI Background (MediaPipe)
         if (typeof SelfieSegmentation !== 'undefined') {
             const selfieSegmentation = new SelfieSegmentation({
                 locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`
@@ -158,11 +177,9 @@ async function initMedia() {
 
     } catch (err) {
         console.error("Media Error:", err);
+        alert("Nuk mund të hapet kamera ose mikrofoni. Ju lutem jepni leje në browser.");
     }
 }
-
-// Nis median
-initMedia();
 
 // --- 4. Funksionet e UI & Lobby ---
 window.lobbyDecision = function(accepted) {
@@ -188,6 +205,8 @@ window.lobbyDecision = function(accepted) {
 
 window.updateThemeColor = function(color) {
     document.documentElement.style.setProperty('--accent', color);
+    const primaryEls = document.querySelectorAll('.bg-primary, .btn-primary');
+    primaryEls.forEach(el => el.style.backgroundColor = color);
 };
 
 // --- 5. Emojit & Reagimet ---
@@ -204,6 +223,7 @@ function startEmojiRain(emoji) {
         el.style.animation = `fall ${Math.random() * 2 + 1}s linear forwards`;
         el.style.fontSize = (Math.random() * 20 + 20) + 'px';
         el.style.zIndex = '99999';
+        el.style.pointerEvents = 'none';
         container.appendChild(el);
         setTimeout(() => el.remove(), 3000);
     }
@@ -243,13 +263,16 @@ function onBgResults(results) {
         ctx.filter = 'blur(15px)';
         ctx.drawImage(results.image, 0, 0, localCanvas.width, localCanvas.height);
     } else if (virtualBgMode === 'office') {
-        ctx.fillStyle = '#2c3e50'; // Sfond i thjeshtë zyre si ngjyrë nëse dështon imazhi
+        ctx.fillStyle = '#2c3e50'; 
         ctx.fillRect(0, 0, localCanvas.width, localCanvas.height);
     }
     ctx.restore();
 }
 
-window.setVirtualBg = function(mode) { virtualBgMode = mode; };
+window.setVirtualBg = function(mode) { 
+    virtualBgMode = mode; 
+    console.log("Virtual BG set to: " + mode);
+};
 
 function playNotificationSound() {
     try {
@@ -305,6 +328,7 @@ peer.on('connection', conn => {
 });
 
 function setupDataListeners() {
+    if(!dataConn) return;
     dataConn.on('data', data => {
         if (data.type === 'chat') appendMessage(data.msg, 'remote');
         if (data.type === 'reaction') {
@@ -323,8 +347,9 @@ function appendMessage(msg, sender) {
     const chatMessages = document.getElementById('chat-messages');
     if (!chatMessages) return;
     const div = document.createElement('div');
-    div.className = `message ${sender === 'self' ? 'msg-self' : 'msg-remote'} mb-2 p-2 rounded`;
+    div.className = `message ${sender === 'self' ? 'msg-self' : 'msg-remote'} mb-2 p-2 rounded shadow-sm`;
     div.style.background = sender === 'self' ? '#0d6efd' : '#333';
+    div.style.color = "white";
     div.innerText = msg;
     chatMessages.appendChild(div);
     chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -347,7 +372,8 @@ const micBtn = document.getElementById('mic-btn');
 if (micBtn) {
     micBtn.onclick = () => {
         if (!myStream) return;
-        const t = myStream.getAudioTracks()[0]; t.enabled = !t.enabled;
+        const t = myStream.getAudioTracks()[0]; 
+        t.enabled = !t.enabled;
         micBtn.innerHTML = t.enabled ? '<i class="fas fa-microphone"></i><span class="btn-label">Mute</span>' : '<i class="fas fa-microphone-slash text-danger"></i><span class="btn-label">Unmute</span>';
     };
 }
@@ -356,7 +382,8 @@ const cameraBtn = document.getElementById('camera-btn');
 if (cameraBtn) {
     cameraBtn.onclick = () => {
         if (!myStream) return;
-        const t = myStream.getVideoTracks()[0]; t.enabled = !t.enabled;
+        const t = myStream.getVideoTracks()[0]; 
+        t.enabled = !t.enabled;
         cameraBtn.innerHTML = t.enabled ? '<i class="fas fa-video"></i><span class="btn-label">Video</span>' : '<i class="fas fa-video-slash text-danger"></i><span class="btn-label">Start</span>';
     };
 }
@@ -365,8 +392,9 @@ window.copyMyId = function() {
     const myIdDisplay = document.getElementById('my-id');
     if (!myIdDisplay) return;
     const id = myIdDisplay.innerText;
-    navigator.clipboard.writeText(id); 
-    alert("ID e NextMeet u kopjua!"); 
+    navigator.clipboard.writeText(id).then(() => {
+        alert("ID e NextMeet u kopjua: " + id); 
+    });
 };
 
 window.leaveMeeting = function() { 
@@ -388,6 +416,7 @@ function showReaction(emoji, origin) {
     el.style.position = 'absolute';
     el.style.bottom = '50px';
     el.style.fontSize = '30px';
+    el.style.zIndex = "100";
     container.appendChild(el);
     setTimeout(() => el.remove(), 2000);
 }
@@ -404,7 +433,10 @@ function setupVoiceDetection(stream, id) {
             analyser.getByteFrequencyData(data);
             const avg = data.reduce((a, b) => a + b) / data.length;
             const wrapper = document.getElementById(id);
-            if(wrapper) wrapper.classList.toggle('speaking', avg > 30);
+            if(wrapper) {
+                if(avg > 30) wrapper.style.boxShadow = "0 0 20px #0d6efd";
+                else wrapper.style.boxShadow = "none";
+            }
             requestAnimationFrame(check);
         }
         check();
@@ -419,7 +451,7 @@ function updateParticipants(name, joined) {
         const div = document.createElement('div');
         div.id = `part-${name}`;
         div.className = "d-flex align-items-center p-2 mb-1 rounded bg-secondary bg-opacity-10";
-        div.innerHTML = `<div class="avatar-sm bg-info rounded-circle me-2 d-flex align-items-center justify-content-center small">${name[0]}</div><span class="flex-grow-1 small">${name}</span>`;
+        div.innerHTML = `<div class="avatar-sm bg-info rounded-circle me-2 d-flex align-items-center justify-content-center small fw-bold">${name[0]}</div><span class="flex-grow-1 small">${name}</span>`;
         list.appendChild(div);
     }
 }
