@@ -34,30 +34,29 @@ window.startMeeting = function() {
     const authOverlay = document.getElementById('auth-overlay');
     const loginBtn = document.getElementById('start-btn'); 
     
-    if (!nameInput || !passInput) return;
+    if (!nameInput) return;
 
     const emri = nameInput.value.trim();
-    const pass = passInput.value.trim();
+    const pass = passInput ? passInput.value.trim() : "";
 
     if (!emri) return alert("Ju lutem shkruani emrin!");
     if (pass !== "1234") return alert("Fjalëkalimi i pasaktë!");
     
     userName = emri;
     
-    // Përditëso emrat në UI
-    const localDisplayName = document.getElementById('local-name-display');
-    const localPartName = document.getElementById('local-participant-name');
-    if (localDisplayName) localDisplayName.innerText = emri;
-    if (localPartName) localPartName.innerText = emri + " (Ti)";
+    // Përditëso UI menjëherë
+    if (document.getElementById('local-name-display')) 
+        document.getElementById('local-name-display').innerText = emri;
+    if (document.getElementById('local-participant-name')) 
+        document.getElementById('local-participant-name').innerText = emri + " (Ti)";
     
-    if (loginBtn) {
-        loginBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Duke u lidhur...';
-        loginBtn.disabled = true;
+    // 1. Fsheh overlay-in menjëherë që të mos mbetet "Duke u lidhur"
+    if (authOverlay) {
+        authOverlay.style.display = 'none';
+        authOverlay.classList.add('auth-hidden');
     }
 
-    // Fsheh overlay-in dhe nis median
-    if (authOverlay) authOverlay.classList.add('auth-hidden');
-    
+    // 2. Nis median
     initMedia();
 };
 
@@ -74,9 +73,10 @@ async function initMedia() {
         if (localVideo) {
             localVideo.srcObject = stream;
             localVideo.muted = true;
-            localVideo.play().catch(e => console.log("Video play blocked"));
+            localVideo.play().catch(e => console.warn("Video play blocked by browser"));
         }
         
+        // Dëgjo për thirrje hyrëse
         peer.on('call', call => {
             pendingCall = call;
             const lobby = document.getElementById('lobby-modal');
@@ -84,18 +84,15 @@ async function initMedia() {
             playNotificationSound(); 
         });
 
-        // Inicializimet Pro (nëse libraritë janë gati)
-        setupWhiteboard();
-        if (typeof SelfieSegmentation !== 'undefined') {
-            setupAIBlur();
-        }
+        // Inicializo funksionet tjera pa bllokuar rrjedhën
+        setTimeout(() => {
+            setupWhiteboard();
+            if (typeof SelfieSegmentation !== 'undefined') setupAIBlur();
+        }, 1000);
 
     } catch (err) {
         console.error("Media Error:", err);
-        alert("Gabim: Nuk u qasëm në kamerë/mikrofon. Kontrolloni lejet!");
-        // Sigurohemi që overlay fshihet edhe nëse dështon media
-        const authOverlay = document.getElementById('auth-overlay');
-        if (authOverlay) authOverlay.classList.add('auth-hidden');
+        alert("Nuk u qasëm në kamerë. Mund të vazhdoni vetëm me chat.");
     }
 }
 
@@ -127,20 +124,19 @@ window.lobbyDecision = function(accepted) {
     }
 };
 
-// --- 4. Eventet & Kontrollet ---
+// --- 4. Inicializimi i Eventeve ---
 document.addEventListener('DOMContentLoaded', () => {
-    // Lidhja me partnerin
+    // Butoni Connect
     const connectBtn = document.getElementById('connect-btn');
     if (connectBtn) {
         connectBtn.onclick = () => {
             const idInput = document.getElementById('remote-id-input');
             const id = idInput ? idInput.value.trim() : null;
-            if (!id) return alert("Shkruaj ID-në!");
+            if (!id) return alert("Shkruaj ID-në e partnerit!");
             
             const call = peer.call(id, myStream);
             currentPeerCall = call;
             
-            // Shfaq rrethin e pritjes
             const waiting = document.getElementById('waiting-overlay');
             if (waiting) waiting.classList.remove('d-none');
 
@@ -157,7 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // Chat
+    // Butoni Chat
     const sendBtn = document.getElementById('send-chat');
     if (sendBtn) {
         sendBtn.onclick = () => {
@@ -170,15 +166,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// --- FUNKSIONET E KONTROLLIT (Mic, Cam, Screen, Blur) ---
+// --- FUNKSIONET E KONTROLLIT ---
 
 window.toggleMic = function() {
     if (!myStream) return;
     isMicOn = !isMicOn;
     myStream.getAudioTracks()[0].enabled = isMicOn;
     const btn = document.getElementById('mic-btn');
-    btn.classList.toggle('btn-danger', !isMicOn);
-    btn.innerHTML = isMicOn ? '<i class="fas fa-microphone"></i>' : '<i class="fas fa-microphone-slash"></i>';
+    if(btn) {
+        btn.classList.toggle('btn-danger', !isMicOn);
+        btn.innerHTML = isMicOn ? '<i class="fas fa-microphone"></i>' : '<i class="fas fa-microphone-slash"></i>';
+    }
 };
 
 window.toggleCam = function() {
@@ -186,12 +184,14 @@ window.toggleCam = function() {
     isCamOn = !isCamOn;
     myStream.getVideoTracks()[0].enabled = isCamOn;
     const btn = document.getElementById('camera-btn');
-    btn.classList.toggle('btn-danger', !isCamOn);
-    btn.innerHTML = isCamOn ? '<i class="fas fa-video"></i>' : '<i class="fas fa-video-slash"></i>';
+    if(btn) {
+        btn.classList.toggle('btn-danger', !isCamOn);
+        btn.innerHTML = isCamOn ? '<i class="fas fa-video"></i>' : '<i class="fas fa-video-slash"></i>';
+    }
 };
 
 window.toggleBlur = async function() {
-    if (typeof SelfieSegmentation === 'undefined') return alert("Libraria AI po ngarkohet, provo pas pak...");
+    if (typeof SelfieSegmentation === 'undefined') return alert("Libraria AI nuk është gati.");
     isBlurActive = !isBlurActive;
     const blurBtn = document.getElementById('blur-btn');
     if(blurBtn) blurBtn.classList.toggle('btn-primary', isBlurActive);
@@ -203,7 +203,6 @@ window.toggleBlur = async function() {
     }
 };
 
-// AI Blur Logic
 function setupAIBlur() {
     canvasElement = document.createElement('canvas');
     canvasCtx = canvasElement.getContext('2d');
@@ -215,7 +214,7 @@ function setupAIBlur() {
 async function processBlur() {
     if (!isBlurActive) return;
     const video = document.getElementById('local-video');
-    if (video.readyState === 4) {
+    if (video && video.readyState === 4) {
         await selfieSegmentation.send({image: video});
     }
     requestAnimationFrame(processBlur);
@@ -232,12 +231,8 @@ function onBlurResults(results) {
     canvasCtx.filter = 'blur(10px)';
     canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
     canvasCtx.restore();
-    
-    // Update local preview
-    // Shënim: Për ta dërguar te partneri duhet replaceTrack(canvas.captureStream())
 }
 
-// Whiteboard Logic
 function setupWhiteboard() {
     wbCanvas = document.getElementById('whiteboard-canvas');
     if (!wbCanvas) return;
@@ -258,7 +253,6 @@ function setupWhiteboard() {
     };
 }
 
-// --- DATA & MESSAGING ---
 function setupDataListeners() {
     if(!dataConn) return;
     dataConn.on('data', data => {
@@ -276,7 +270,7 @@ function appendMessage(msg, sender) {
     const chatMessages = document.getElementById('chat-messages');
     if (!chatMessages) return;
     const div = document.createElement('div');
-    div.className = `message ${sender === 'self' ? 'msg-self' : 'msg-remote'} mb-2 p-2 rounded`;
+    div.className = `message ${sender === 'self' ? 'msg-self' : 'msg-remote'} mb-2 p-2 rounded shadow-sm`;
     div.innerHTML = `<strong>${sender === 'self' ? 'Ti' : 'Partneri'}:</strong> ${msg}`;
     chatMessages.appendChild(div);
     chatMessages.scrollTop = chatMessages.scrollHeight;
