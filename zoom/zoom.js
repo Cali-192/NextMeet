@@ -8,6 +8,9 @@ let dataConn;
 let virtualBgMode = 'none';
 let pendingCall = null; 
 let userName = "Përdorues";
+let isMicOn = true;
+let isCamOn = true;
+let screenStream = null;
 
 // --- KONFIGURIMI I PEERJS ---
 const peer = new Peer(undefined, {
@@ -133,9 +136,10 @@ window.lobbyDecision = function(accepted) {
     }
 };
 
-// --- 4. Inicializimi i Eventeve ---
+// --- 4. Inicializimi i Eventeve & Kontrollet ---
 document.addEventListener('DOMContentLoaded', () => {
     
+    // Butoni Connect
     const connectBtn = document.getElementById('connect-btn');
     if (connectBtn) {
         connectBtn.onclick = () => {
@@ -161,6 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
+    // Butoni i Chat-it
     const sendChat = document.getElementById('send-chat');
     if (sendChat) {
         sendChat.onclick = () => {
@@ -170,6 +175,65 @@ document.addEventListener('DOMContentLoaded', () => {
             if(dataConn) dataConn.send({type: 'chat', msg: chatInput.value});
             chatInput.value = "";
         };
+    }
+
+    // --- Kontrollet e Butonave (Mic, Cam, Screen) ---
+    
+    // Mute/Unmute
+    window.toggleMic = function() {
+        if (!myStream) return;
+        isMicOn = !isMicOn;
+        myStream.getAudioTracks()[0].enabled = isMicOn;
+        const btn = document.getElementById('mic-btn');
+        btn.classList.toggle('btn-danger', !isMicOn);
+        btn.innerHTML = isMicOn ? '<i class="fas fa-microphone"></i>' : '<i class="fas fa-microphone-slash"></i>';
+    };
+
+    // Camera On/Off
+    window.toggleCam = function() {
+        if (!myStream) return;
+        isCamOn = !isCamOn;
+        myStream.getVideoTracks()[0].enabled = isCamOn;
+        const btn = document.getElementById('camera-btn');
+        btn.classList.toggle('btn-danger', !isCamOn);
+        btn.innerHTML = isCamOn ? '<i class="fas fa-video"></i>' : '<i class="fas fa-video-slash"></i>';
+    };
+
+    // Screen Share
+    window.toggleScreenShare = async function() {
+        try {
+            if (!screenStream) {
+                screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                const videoTrack = screenStream.getVideoTracks()[0];
+                
+                // Zëvendëso track-un te thirrja aktive
+                if (currentPeerCall) {
+                    const sender = currentPeerCall.peerConnection.getSenders().find(s => s.track.kind === 'video');
+                    sender.replaceTrack(videoTrack);
+                }
+                
+                document.getElementById('local-video').srcObject = screenStream;
+                
+                videoTrack.onended = () => stopScreenShare();
+            } else {
+                stopScreenShare();
+            }
+        } catch (err) {
+            console.error("Screen Share Error:", err);
+        }
+    };
+
+    function stopScreenShare() {
+        if (!screenStream) return;
+        screenStream.getTracks().forEach(track => track.stop());
+        screenStream = null;
+        
+        const videoTrack = myStream.getVideoTracks()[0];
+        if (currentPeerCall) {
+            const sender = currentPeerCall.peerConnection.getSenders().find(s => s.track.kind === 'video');
+            sender.replaceTrack(videoTrack);
+        }
+        document.getElementById('local-video').srcObject = myStream;
     }
 });
 
@@ -191,20 +255,12 @@ function appendMessage(msg, sender) {
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-// --- 5. Kontrollet ---
+// --- 5. Kontrollet e tjera ---
 window.copyMyId = function() { 
     const myIdEl = document.getElementById('my-id');
     if (!myIdEl) return;
     const id = myIdEl.innerText;
     navigator.clipboard.writeText(id).then(() => {
-        alert("ID u kopjua!");
-    }).catch(err => {
-        const textArea = document.createElement("textarea");
-        textArea.value = id;
-        document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textArea);
         alert("ID u kopjua!");
     });
 };
@@ -226,19 +282,13 @@ function showReaction(emoji, origin) {
     
     const el = document.createElement('div');
     el.innerText = emoji;
-    // Përdorim klasën për animacionin që fluturon
     el.className = 'reaction-animate'; 
     
-    // I japim një pozicion paksa random që të mos dalin fiks në një vend
     const randomOffset = Math.floor(Math.random() * 40) - 20;
     el.style.left = `calc(50% + ${randomOffset}px)`;
     
     container.appendChild(el);
-    
-    // Hiqe elementin pas animacionit (2 sekonda)
-    setTimeout(() => {
-        if (el.parentNode) el.remove();
-    }, 2000);
+    setTimeout(() => { if (el.parentNode) el.remove(); }, 2000);
 }
 
 function playNotificationSound() {
