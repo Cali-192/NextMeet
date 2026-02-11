@@ -1,18 +1,3 @@
-html, body {
-    width: 100%;
-    height: 100%;
-    margin: 0;
-    padding: 0;
-    overflow: hidden; /* Ndalon rrëshqitjen (scrolling) e panevojshme */
-    position: fixed; /* E mban saitin "beton" në ekran */
-}
-
-.main-wrapper {
-    height: 100vh;
-    width: 100vw;
-    display: flex;
-    flex-direction: column;
-}
 /* --- Variablat Kryesore --- */
 :root {
     --bg-dark: #121212;
@@ -25,23 +10,37 @@ html, body {
     --success: #00e676;
     --warning: #ffb800;
     --info: #0dcaf0;
+    --glass: rgba(255, 255, 255, 0.05);
 }
 
 /* --- Stilimi i Përgjithshëm --- */
 * {
     box-sizing: border-box;
+    outline: none !important;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden; 
+    position: fixed; 
+    background-color: var(--bg-black);
 }
 
 body {
-    font-family: 'Inter', 'Segoe UI', sans-serif;
-    background-color: var(--bg-dark);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     color: var(--text-main);
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    height: 100vh;
     display: flex;
-    flex-direction: column; /* Rreshton Header, Grid dhe Controls vertikalisht */
+    flex-direction: column;
+}
+
+.main-wrapper {
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    flex-direction: column;
 }
 
 /* --- 1. LOGIN SCREEN (AUTHENTICATION) --- */
@@ -60,17 +59,19 @@ body {
 
 #auth-overlay .card {
     animation: fadeInScale 0.5s ease-out;
-    background: rgba(20, 20, 20, 0.95) !important;
-    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    background: rgba(20, 20, 20, 0.85) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    backdrop-filter: blur(15px);
     z-index: 100001 !important;
     pointer-events: all !important;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-    max-width: 400px;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.6);
+    max-width: 420px;
     width: 90%;
+    border-radius: 24px;
 }
 
 .visible-slogan {
-    color: rgba(255, 255, 255, 0.7) !important;
+    color: rgba(255, 255, 255, 0.6) !important;
     font-size: 0.85rem;
     margin-top: 5px;
 }
@@ -98,45 +99,20 @@ body {
 }
 
 .auth-body .btn-primary {
-    background-color: var(--accent) !important;
+    background: var(--accent) !important;
     border: none !important;
-    transition: all 0.3s ease;
+    padding: 14px !important;
+    border-radius: 12px !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer !important;
-    position: relative;
-    z-index: 100002 !important;
     font-weight: 700;
-    letter-spacing: 1px;
+    text-transform: uppercase;
 }
 
 .auth-body .btn-primary:hover {
-    background-color: #1e88e5 !important;
-    transform: translateY(-3px);
-    box-shadow: 0 8px 20px rgba(13, 110, 253, 0.4);
-}
-
-.auth-body input {
-    cursor: text !important;
-    transition: all 0.2s;
-}
-
-.auth-body input:focus {
-    background: rgba(255, 255, 255, 0.05) !important;
-    border: 1px solid var(--accent) !important;
-    box-shadow: 0 0 15px rgba(13, 110, 253, 0.2) !important;
-}
-
-.auth-body a {
-    color: var(--accent) !important;
-    cursor: pointer !important;
-    position: relative;
-    z-index: 100002 !important;
-    text-decoration: none;
-    transition: all 0.2s;
-}
-
-.auth-body a:hover {
-    color: var(--info) !important;
-    text-decoration: underline !important;
+    filter: brightness(1.2);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(13, 110, 253, 0.3);
 }
 
 /* --- 2. EMOJI RAIN EFFECT --- */
@@ -156,120 +132,110 @@ body {
 /* --- HEADER & NAVIGATION --- */
 header {
     height: auto;
-    min-height: 60px;
+    min-height: 65px;
     z-index: 1000;
-    flex-shrink: 0; /* Nuk e lejon header-in të shtypet */
-    background: var(--bg-black);
-    border-bottom: 1px solid #222;
+    flex-shrink: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 0 20px;
 }
 
 /* --- 3. NETWORK INDICATOR --- */
 #network-status {
-    background: rgba(255, 255, 255, 0.05);
-    padding: 6px 12px;
-    border-radius: 20px;
+    background: var(--glass);
+    padding: 6px 14px;
+    border-radius: 100px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
     align-items: center;
     gap: 8px;
-    min-width: 130px;
 }
 
 #network-dot {
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    transition: all 0.3s ease;
-    box-shadow: 0 0 10px rgba(0, 230, 118, 0.4);
+    background-color: var(--success);
+    box-shadow: 0 0 10px var(--success);
 }
 
 #network-text {
-    color: #ffffff !important;
-    font-size: 11px !important;
-    font-weight: 700 !important;
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 1px;
 }
 
-/* --- 4. VIDEO GRID (HIGHLY RESPONSIVE) --- */
+/* --- 4. VIDEO GRID --- */
 #video-grid {
-    background-color: #0a0a0a;
+    background-color: #050505;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: center;
-    gap: 12px;
-    padding: 15px;
-    transition: all 0.3s ease;
-    flex-grow: 1; /* Merr gjithë hapësirën e lirë */
-    overflow-y: auto; /* Scroll nëse ka shumë njerëz */
+    gap: 16px;
+    padding: 20px;
+    flex-grow: 1;
+    overflow-y: auto;
 }
 
 .video-item {
     position: relative;
-    background: #000;
-    border-radius: 12px;
+    background: #111;
+    border-radius: 18px;
     overflow: hidden;
-    border: 2px solid #222;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.4);
-    flex: 1 1 350px; /* Fleksibilitet në gjerësi */
-    max-width: 800px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+    flex: 1 1 350px;
+    max-width: 900px;
     aspect-ratio: 16/9;
+    transition: transform 0.3s ease, border-color 0.3s ease;
+}
+
+.video-item:hover {
+    border-color: rgba(255, 255, 255, 0.15);
 }
 
 .video-item.speaking {
-    border-color: var(--success);
-    box-shadow: 0 0 15px rgba(0, 230, 118, 0.3);
+    border: 2px solid var(--success);
+    box-shadow: 0 0 20px rgba(0, 230, 118, 0.2);
 }
 
-/* Low Bandwidth Mode */
-body.low-bandwidth-active .video-item video {
-    display: none !important;
-}
-body.low-bandwidth-active .video-item::after {
-    content: "Audio Mode On";
+/* Name Tag Styling */
+.video-item .video-info {
     position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    color: var(--text-muted);
+    bottom: 12px;
+    left: 12px;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(8px);
+    padding: 4px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    color: white;
+    z-index: 10;
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-video, canvas#local-canvas {
+video {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    background: #000;
 }
 
-#local-video, #local-canvas { transform: scaleX(-1); }
+#local-video { transform: scaleX(-1); }
 
-/* --- 5. WHITEBOARD OVERLAY --- */
-#whiteboard-overlay {
-    position: absolute;
-    inset: 0;
-    background: white;
-    z-index: 1100;
-    display: flex;
-    flex-direction: column;
-}
-
-#whiteboard-canvas {
-    flex-grow: 1;
-    background: #ffffff;
-}
-
-/* --- 6. LOBBY & MODALS --- */
+/* --- 5. LOBBY & MODALS --- */
 #lobby-modal {
     animation: slideDown 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     background: #1a1a1a;
+    border-radius: 20px;
     border: 1px solid var(--accent) !important;
     z-index: 3000;
-    position: fixed;
-    top: 20%;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 90%;
-    max-width: 500px;
+    padding: 20px;
 }
 
 @keyframes slideDown {
@@ -277,188 +243,117 @@ video, canvas#local-canvas {
     to { transform: translate(-50%, 0); opacity: 1; }
 }
 
-#poll-modal {
-    border: 1px solid var(--accent) !important;
-    background: #1a1a1a !important;
-    box-shadow: 0 0 30px rgba(13, 110, 253, 0.2);
-    z-index: 3000;
-}
-
-/* --- 7. CAPTIONS & CHAT --- */
-#caption-box {
-    pointer-events: none;
-    z-index: 1050;
-    transition: all 0.3s ease;
-}
-
-#caption-text {
-    font-size: 1.1rem;
-    background: rgba(0, 0, 0, 0.85);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(5px);
-}
-
-#chat-panel, #participants-panel {
-    z-index: 10;
-}
-
-#chat-messages {
-    background-color: #080808;
-    display: flex;
-    flex-direction: column;
-}
-
-.message {
-    margin-bottom: 10px;
-    padding: 8px 12px;
-    border-radius: 10px;
-    max-width: 85%;
-    font-size: 13px;
-    color: white;
-}
-
-.msg-self { background: var(--accent); align-self: flex-end; }
-.msg-remote { background: var(--secondary); align-self: flex-start; }
-
-/* --- 8. CONTROLS BAR (FIXED HEIGHT) --- */
+/* --- 6. CONTROLS BAR --- */
 .controls-bar {
-    min-height: 80px;
-    flex-shrink: 0; /* Nuk e lejon të shtypet poshtë */
-    z-index: 1001;
-    background: var(--bg-black);
+    min-height: 85px;
+    background: rgba(0, 0, 0, 0.9);
+    backdrop-filter: blur(15px);
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 10px 20px;
-    border-top: 1px solid #222;
-    gap: 12px;
+    padding: 10px 30px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    gap: 15px;
 }
 
 .btn-control-main, .btn-control-secondary {
-    background: #1a1a1a;
-    border: 1px solid #333;
+    background: var(--glass);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     color: white;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 6px;
-    min-width: 70px;
-    height: 55px;
-    border-radius: 10px;
-    transition: all 0.2s;
-    cursor: pointer;
+    min-width: 75px;
+    height: 60px;
+    border-radius: 14px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.btn-control-main:hover, .btn-control-secondary:hover {
-    background: #252525;
+.btn-control-main:hover {
+    background: rgba(255, 255, 255, 0.1);
     border-color: var(--accent);
-    color: var(--accent);
+    transform: translateY(-3px);
+}
+
+.btn-control-main.active {
+    background: var(--accent);
+}
+
+.btn-danger {
+    background: var(--danger) !important;
+    border: none !important;
 }
 
 .btn-label {
-    font-size: 8px;
-    margin-top: 4px;
+    font-size: 9px;
+    margin-top: 5px;
     text-transform: uppercase;
     font-weight: 700;
-    color: var(--text-muted);
+    opacity: 0.7;
 }
 
-/* --- 9. ANIMATIONS & UTILS --- */
-.animate-pulse {
-    animation: pulse-red 1.5s infinite;
+/* --- 7. CHAT & PARTICIPANTS --- */
+#chat-panel, #participants-panel {
+    background: #000;
+    border-left: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.3s ease;
 }
 
-@keyframes pulse-red {
-    0% { opacity: 1; }
-    50% { opacity: 0.3; }
-    100% { opacity: 1; }
+#chat-messages {
+    padding: 15px;
 }
 
-.custom-scroll::-webkit-scrollbar { width: 4px; }
-.custom-scroll::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
-
-.video-info {
-    position: absolute;
-    bottom: 8px;
-    left: 8px;
-    background: rgba(0,0,0,0.6);
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 10px;
-    backdrop-filter: blur(4px);
-    z-index: 10;
+.message {
+    padding: 10px 14px;
+    border-radius: 14px;
+    font-size: 13.5px;
+    line-height: 1.4;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 }
 
-/* --- 10. COPYRIGHT TAG --- */
-.copyright-tag {
-    position: fixed;
-    bottom: 5px;
-    left: 10px;
-    font-size: 9px;
-    color: rgba(255, 255, 255, 0.2) !important;
-    z-index: 100001;
-    pointer-events: none;
-}
+.msg-self { background: var(--accent); border-bottom-right-radius: 2px; }
+.msg-remote { background: var(--secondary); border-bottom-left-radius: 2px; }
 
-/* --- 11. RESPONSIVE DESIGN (FINAL FIXES) --- */
-
-/* Kur dritarja zvogëlohet si në foto (Minimize) */
-@media (max-width: 992px) {
-    #participants-panel, #chat-panel { 
-        display: none !important; 
-    }
-}
-
-@media (max-width: 768px) {
-    header {
-        padding: 8px !important;
-    }
-
-    #video-grid {
-        padding: 8px;
-        gap: 8px;
-    }
-
-    .video-item {
-        flex: 1 1 100%; /* Merr gjithë gjerësinë */
-        aspect-ratio: 4/3; /* Formë më kompakte */
-    }
-
-    .btn-label {
-        display: none; /* Hiq tekstin për të kursyer vend */
-    }
-
-    .btn-control-main, .btn-control-secondary {
-        min-width: 50px;
-        height: 50px;
-    }
-}
-
-/* Fix për raste kur dritarja është shumë e shkurtër vertikalisht */
-@media (max-height: 500px) {
-    header { min-height: 40px; }
-    .controls-bar { min-height: 60px; padding: 5px; }
-    .btn-control-main, .btn-control-secondary { height: 45px; }
-}
-/* Animacioni i Reagimeve */
+/* --- 8. REACTION ANIMATION --- */
 .reaction-animate {
     position: absolute;
-    bottom: 20px;
+    bottom: 40px;
     left: 50%;
     transform: translateX(-50%);
-    font-size: 2rem;
-    animation: flyUp 2s forwards;
+    font-size: 2.5rem;
+    animation: flyUp 2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
     pointer-events: none;
-    z-index: 10;
+    z-index: 100;
+    text-shadow: 0 10px 20px rgba(0,0,0,0.5);
 }
 
 @keyframes flyUp {
-    0% { bottom: 20px; opacity: 1; transform: translateX(-50%) scale(1); }
-    100% { bottom: 200px; opacity: 0; transform: translateX(-50%) scale(1.5); }
+    0% { transform: translateX(-50%) translateY(0) scale(0.5); opacity: 0; }
+    20% { transform: translateX(-50%) translateY(-20px) scale(1.2); opacity: 1; }
+    100% { transform: translateX(-50%) translateY(-250px) scale(1.5); opacity: 0; }
 }
 
-.video-item {
-    position: relative; /* Kjo duhet që reagimet të rrinë brenda kornizës së videos */
+/* --- 9. UTILS --- */
+.custom-scroll::-webkit-scrollbar { width: 5px; }
+.custom-scroll::-webkit-scrollbar-track { background: transparent; }
+.custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+.custom-scroll::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+/* --- 10. RESPONSIVE --- */
+@media (max-width: 768px) {
+    .controls-bar { gap: 8px; padding: 10px; }
+    .btn-control-main { min-width: 60px; height: 55px; }
+    .btn-label { display: none; }
+    .video-item { flex: 1 1 100%; aspect-ratio: 4/3; }
 }
 
+.copyright-tag {
+    position: fixed;
+    bottom: 8px;
+    left: 15px;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.1) !important;
+    pointer-events: none;
+    letter-spacing: 1px;
+}
