@@ -32,7 +32,6 @@ window.startMeeting = function() {
     const nameInput = document.getElementById('user-name-input');
     const passInput = document.getElementById('meeting-pass-input');
     const authOverlay = document.getElementById('auth-overlay');
-    const loginBtn = document.getElementById('start-btn'); 
     
     if (!nameInput) return;
 
@@ -50,13 +49,15 @@ window.startMeeting = function() {
     if (document.getElementById('local-participant-name')) 
         document.getElementById('local-participant-name').innerText = emri + " (Ti)";
     
-    // 1. Fsheh overlay-in menjëherë që të mos mbetet "Duke u lidhur"
+    // Fsheh overlay-in
     if (authOverlay) {
-        authOverlay.style.display = 'none';
-        authOverlay.classList.add('auth-hidden');
+        authOverlay.style.opacity = '0';
+        setTimeout(() => {
+            authOverlay.style.display = 'none';
+        }, 500);
     }
 
-    // 2. Nis median
+    // Nis median
     initMedia();
 };
 
@@ -73,7 +74,7 @@ async function initMedia() {
         if (localVideo) {
             localVideo.srcObject = stream;
             localVideo.muted = true;
-            localVideo.play().catch(e => console.warn("Video play blocked by browser"));
+            localVideo.play().catch(e => console.warn("Video blocked"));
         }
         
         // Dëgjo për thirrje hyrëse
@@ -84,7 +85,12 @@ async function initMedia() {
             playNotificationSound(); 
         });
 
-        // Inicializo funksionet tjera pa bllokuar rrjedhën
+        // Dëgjo për lidhje të dhënash (Chat/Reactions)
+        peer.on('connection', conn => {
+            dataConn = conn;
+            setupDataListeners();
+        });
+
         setTimeout(() => {
             setupWhiteboard();
             if (typeof SelfieSegmentation !== 'undefined') setupAIBlur();
@@ -92,7 +98,7 @@ async function initMedia() {
 
     } catch (err) {
         console.error("Media Error:", err);
-        alert("Nuk u qasëm në kamerë. Mund të vazhdoni vetëm me chat.");
+        alert("Gabim në qasjen e medias. Kontrolloni lejet e kamerës.");
     }
 }
 
@@ -119,6 +125,7 @@ window.lobbyDecision = function(accepted) {
             }
         });
 
+        // Krijojmë lidhjen e të dhënave automatikisht pas pranimit të thirrjes
         dataConn = peer.connect(pendingCall.peer);
         setupDataListeners();
     }
@@ -153,14 +160,26 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // Butoni Chat
+    // Butoni Chat (Enter key support)
+    const chatInput = document.getElementById('chat-input');
+    if (chatInput) {
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') document.getElementById('send-chat').click();
+        });
+    }
+
     const sendBtn = document.getElementById('send-chat');
     if (sendBtn) {
         sendBtn.onclick = () => {
             const input = document.getElementById('chat-input');
             if(!input || !input.value.trim()) return;
-            appendMessage(input.value, 'self');
-            if(dataConn) dataConn.send({type: 'chat', msg: input.value, user: userName});
+            
+            const mesazhi = input.value.trim();
+            appendMessage(mesazhi, 'self');
+            
+            if(dataConn && dataConn.open) {
+                dataConn.send({type: 'chat', msg: mesazhi, user: userName});
+            }
             input.value = "";
         };
     }
@@ -190,73 +209,48 @@ window.toggleCam = function() {
     }
 };
 
-window.toggleBlur = async function() {
-    if (typeof SelfieSegmentation === 'undefined') return alert("Libraria AI nuk është gati.");
-    isBlurActive = !isBlurActive;
-    const blurBtn = document.getElementById('blur-btn');
-    if(blurBtn) blurBtn.classList.toggle('btn-primary', isBlurActive);
-    
-    if (isBlurActive) {
-        requestAnimationFrame(processBlur);
-    } else {
-        document.getElementById('local-video').srcObject = myStream;
-    }
+window.toggleWhiteboard = function() {
+    const wb = document.getElementById('whiteboard-overlay');
+    if (!wb) return;
+    const isVisible = wb.style.display === 'flex';
+    wb.style.display = isVisible ? 'none' : 'flex';
+    if (!isVisible) setupWhiteboard(); // Sigurohemi që canvas ka përmasat e duhura
 };
-
-function setupAIBlur() {
-    canvasElement = document.createElement('canvas');
-    canvasCtx = canvasElement.getContext('2d');
-    selfieSegmentation = new SelfieSegmentation({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`});
-    selfieSegmentation.setOptions({modelSelection: 1});
-    selfieSegmentation.onResults(onBlurResults);
-}
-
-async function processBlur() {
-    if (!isBlurActive) return;
-    const video = document.getElementById('local-video');
-    if (video && video.readyState === 4) {
-        await selfieSegmentation.send({image: video});
-    }
-    requestAnimationFrame(processBlur);
-}
-
-function onBlurResults(results) {
-    canvasElement.width = 640; canvasElement.height = 360;
-    canvasCtx.save();
-    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-    canvasCtx.drawImage(results.segmentationMask, 0, 0, canvasElement.width, canvasElement.height);
-    canvasCtx.globalCompositeOperation = 'source-in';
-    canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
-    canvasCtx.globalCompositeOperation = 'destination-over';
-    canvasCtx.filter = 'blur(10px)';
-    canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
-    canvasCtx.restore();
-}
 
 function setupWhiteboard() {
     wbCanvas = document.getElementById('whiteboard-canvas');
     if (!wbCanvas) return;
     wbCtx = wbCanvas.getContext('2d');
-    wbCanvas.width = window.innerWidth;
-    wbCanvas.height = window.innerHeight;
+    
+    // Rregullo përmasat sipas dritares
+    wbCanvas.width = wbCanvas.offsetWidth;
+    wbCanvas.height = wbCanvas.offsetHeight;
 
-    wbCanvas.onmousedown = () => drawing = true;
-    wbCanvas.onmouseup = () => { drawing = false; wbCtx.beginPath(); };
+    wbCanvas.onmousedown = () => { drawing = true; wbCtx.beginPath(); };
+    wbCanvas.onmouseup = () => { drawing = false; };
     wbCanvas.onmousemove = (e) => {
         if (!drawing) return;
+        const rect = wbCanvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
         wbCtx.lineWidth = 3;
         wbCtx.lineCap = 'round';
-        wbCtx.strokeStyle = document.getElementById('wb-color')?.value || "#ffffff";
-        wbCtx.lineTo(e.clientX, e.clientY - 50);
+        wbCtx.strokeStyle = document.getElementById('wb-color')?.value || "#0d6efd";
+        
+        wbCtx.lineTo(x, y);
         wbCtx.stroke();
-        if(dataConn) dataConn.send({type: 'draw', x: e.clientX, y: e.clientY - 50, color: wbCtx.strokeStyle});
+
+        if(dataConn && dataConn.open) {
+            dataConn.send({type: 'draw', x: x, y: y, color: wbCtx.strokeStyle, isNewPath: false});
+        }
     };
 }
 
 function setupDataListeners() {
     if(!dataConn) return;
     dataConn.on('data', data => {
-        if (data.type === 'chat') appendMessage(data.msg, 'remote');
+        if (data.type === 'chat') appendMessage(data.msg, 'remote', data.user);
         if (data.type === 'reaction') showReaction(data.emoji, 'remote');
         if (data.type === 'draw') {
             wbCtx.strokeStyle = data.color;
@@ -266,34 +260,50 @@ function setupDataListeners() {
     });
 }
 
-function appendMessage(msg, sender) {
+function appendMessage(msg, sender, remoteUser = "Partneri") {
     const chatMessages = document.getElementById('chat-messages');
     if (!chatMessages) return;
+    
     const div = document.createElement('div');
-    div.className = `message ${sender === 'self' ? 'msg-self' : 'msg-remote'} mb-2 p-2 rounded shadow-sm`;
-    div.innerHTML = `<strong>${sender === 'self' ? 'Ti' : 'Partneri'}:</strong> ${msg}`;
+    div.className = `chat-message shadow-sm`;
+    div.innerHTML = `
+        <span class="user">${sender === 'self' ? 'Ti' : remoteUser}</span>
+        <span class="text">${msg}</span>
+    `;
     chatMessages.appendChild(div);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
 window.copyMyId = function() {
     const id = document.getElementById('my-id').innerText;
-    navigator.clipboard.writeText(id).then(() => alert("ID u kopjua!"));
+    navigator.clipboard.writeText(id).then(() => {
+        const btn = document.querySelector('[onclick="copyMyId()"] i');
+        btn.className = "fas fa-check text-success";
+        setTimeout(() => btn.className = "far fa-copy", 2000);
+    });
 };
 
 window.sendReaction = function(emoji) {
-    if(dataConn) dataConn.send({type: 'reaction', emoji: emoji});
+    if(dataConn && dataConn.open) {
+        dataConn.send({type: 'reaction', emoji: emoji});
+    }
     showReaction(emoji, 'local');
 };
 
 function showReaction(emoji, origin) {
     const container = document.getElementById(`reaction-container-${origin}`);
     if (!container) return;
+    
     const el = document.createElement('div');
     el.innerText = emoji;
     el.className = 'reaction-animate';
+    
+    // Pozicionim random paksa majtas/djathtas për efekt më natyral
+    const randomOffset = Math.floor(Math.random() * 40) - 20;
+    el.style.left = `calc(50% + ${randomOffset}px)`;
+    
     container.appendChild(el);
-    setTimeout(() => el.remove(), 2000);
+    setTimeout(() => el.remove(), 2500);
 }
 
 function playNotificationSound() {
@@ -301,4 +311,12 @@ function playNotificationSound() {
     audio.play().catch(e => {});
 }
 
-window.leaveMeeting = () => { if(confirm("Dëshiron të largohesh?")) location.reload(); };
+window.clearWhiteboard = function() {
+    if(wbCtx) wbCtx.clearRect(0, 0, wbCanvas.width, wbCanvas.height);
+};
+
+window.leaveMeeting = () => { 
+    if(confirm("Dëshiron të largohesh nga ky takim?")) {
+        location.reload(); 
+    }
+};
