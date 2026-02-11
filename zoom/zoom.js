@@ -1,5 +1,5 @@
-// NextMeet | Next-Gen Video Conferencing
-document.title = "NextMeet | Next-Gen Video Conferencing";
+// NextMeet | Next-Gen Video Conferencing - Professional Suite
+document.title = "NextMeet | Pro Edition";
 
 // --- Variablat Globale ---
 let myStream;
@@ -12,12 +12,14 @@ let isMicOn = true;
 let isCamOn = true;
 let screenStream = null;
 
-// Variablat për Record dhe AI Blur
+// Variablat për Record, AI Blur dhe Whiteboard
 let mediaRecorder;
 let recordedChunks = [];
 let selfieSegmentation;
 let isBlurActive = false;
+let isCaptionsActive = false;
 let canvasElement, canvasCtx;
+let wbCanvas, wbCtx, drawing = false;
 
 // --- KONFIGURIMI I PEERJS ---
 const peer = new Peer(undefined, {
@@ -29,52 +31,28 @@ const peer = new Peer(undefined, {
 
 // --- 1. LOGIN & HYRJA ---
 window.startMeeting = function() {
-    console.log("Tentim për login...");
-    
     const nameInput = document.getElementById('user-name-input');
     const passInput = document.getElementById('meeting-pass-input');
     const authOverlay = document.getElementById('auth-overlay');
     const loginBtn = document.getElementById('start-btn'); 
     
-    if (!nameInput || !passInput) {
-        console.error("Elementet e loginit nuk u gjetën në DOM!");
-        return;
-    }
-
     const emri = nameInput.value.trim();
     const pass = passInput.value.trim();
 
-    if (!emri) {
-        alert("Ju lutem shkruani emrin!");
-        return;
-    }
-
-    if (pass !== "1234") {
-        alert("Fjalëkalimi i pasaktë!");
-        return;
-    }
+    if (!emri) return alert("Ju lutem shkruani emrin!");
+    if (pass !== "1234") return alert("Fjalëkalimi i pasaktë!");
     
     userName = emri;
     
-    const localDisplayName = document.getElementById('local-name-display');
-    const localPartName = document.getElementById('local-participant-name');
-    if (localDisplayName) localDisplayName.innerText = emri;
-    if (localPartName) localPartName.innerText = emri + " (Ti)";
+    document.getElementById('local-name-display').innerText = emri;
+    document.getElementById('local-participant-name').innerText = emri + " (Ti)";
     
     if (loginBtn) {
-        loginBtn.innerHTML = 'Duke u lidhur...';
+        loginBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Duke u lidhur...';
         loginBtn.disabled = true;
     }
 
-    if (authOverlay) {
-        authOverlay.style.display = 'none';
-    }
-
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (AudioContext) {
-        const audioCtx = new AudioContext();
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-    }
+    if (authOverlay) authOverlay.classList.add('auth-hidden');
 
     initMedia();
 };
@@ -83,7 +61,7 @@ window.startMeeting = function() {
 async function initMedia() {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: true, 
+            video: { width: 1280, height: 720 }, 
             audio: true 
         });
         
@@ -92,35 +70,31 @@ async function initMedia() {
         if (localVideo) {
             localVideo.srcObject = stream;
             localVideo.muted = true;
-            localVideo.setAttribute('playsinline', 'true');
-            localVideo.play().catch(e => console.error("Video Play Error:", e));
+            localVideo.play();
         }
         
         peer.on('call', call => {
             pendingCall = call;
-            const lobby = document.getElementById('lobby-modal');
-            if (lobby) lobby.classList.remove('d-none');
+            document.getElementById('lobby-modal').classList.remove('d-none');
             playNotificationSound(); 
         });
 
-        // Inicializo AI Blur në sfond
         setupAIBlur();
+        setupWhiteboard();
 
     } catch (err) {
         console.error("Media Error:", err);
-        alert("Nuk u qasëm në kamerë. Sigurohu që ke dhënë leje (Allow).");
+        alert("Gabim në qasje të medias. Kontrollo lejet!");
     }
 }
 
 // --- 3. PeerJS Setup ---
 peer.on('open', id => {
-    const myIdDisplay = document.getElementById('my-id');
-    if (myIdDisplay) myIdDisplay.innerText = id;
+    document.getElementById('my-id').innerText = id;
 });
 
 window.lobbyDecision = function(accepted) {
-    const lobby = document.getElementById('lobby-modal');
-    if (lobby) lobby.classList.add('d-none');
+    document.getElementById('lobby-modal').classList.add('d-none');
     
     if (accepted && pendingCall) {
         pendingCall.answer(myStream);
@@ -130,9 +104,7 @@ window.lobbyDecision = function(accepted) {
             const remoteVideo = document.getElementById('remote-video');
             if (remoteVideo) {
                 remoteVideo.srcObject = userStream;
-                remoteVideo.setAttribute('playsinline', 'true');
-                const waiting = document.getElementById('waiting-overlay');
-                if (waiting) waiting.classList.add('d-none');
+                document.getElementById('waiting-overlay').classList.add('d-none');
             }
         });
 
@@ -141,155 +113,43 @@ window.lobbyDecision = function(accepted) {
     }
 };
 
-// --- 4. Inicializimi i Eventeve & Kontrollet ---
+// --- 4. Eventet & Kontrollet ---
 document.addEventListener('DOMContentLoaded', () => {
-    
-    const connectBtn = document.getElementById('connect-btn');
-    if (connectBtn) {
-        connectBtn.onclick = () => {
-            const remoteIdInput = document.getElementById('remote-id-input');
-            const id = remoteIdInput ? remoteIdInput.value.trim() : null;
-            if (!id) return alert("Shkruaj ID-në!");
-            
-            const call = peer.call(id, myStream);
-            currentPeerCall = call;
-            
-            call.on('stream', s => { 
-                const remoteVideo = document.getElementById('remote-video');
-                if (remoteVideo) {
-                    remoteVideo.srcObject = s; 
-                    remoteVideo.setAttribute('playsinline', 'true');
-                    const waiting = document.getElementById('waiting-overlay');
-                    if (waiting) waiting.classList.add('d-none');
-                }
-            });
+    // Lidhu me ID
+    document.getElementById('connect-btn').onclick = () => {
+        const id = document.getElementById('remote-id-input').value.trim();
+        if (!id) return alert("Shkruaj ID-në!");
+        
+        const call = peer.call(id, myStream);
+        currentPeerCall = call;
+        
+        document.getElementById('waiting-overlay').classList.remove('d-none');
 
-            dataConn = peer.connect(id);
-            setupDataListeners();
-        };
-    }
+        call.on('stream', s => { 
+            const remoteVideo = document.getElementById('remote-video');
+            if (remoteVideo) {
+                remoteVideo.srcObject = s; 
+                document.getElementById('waiting-overlay').classList.add('d-none');
+            }
+        });
 
-    const sendChat = document.getElementById('send-chat');
-    if (sendChat) {
-        sendChat.onclick = () => {
-            const chatInput = document.getElementById('chat-input');
-            if(!chatInput || !chatInput.value.trim()) return;
-            appendMessage(chatInput.value, 'self');
-            if(dataConn) dataConn.send({type: 'chat', msg: chatInput.value});
-            chatInput.value = "";
-        };
-    }
+        dataConn = peer.connect(id);
+        setupDataListeners();
+    };
 
-    // Lidhja e butonave të kontrollit (Mic, Cam) nga HTML
-    const micBtn = document.getElementById('mic-btn');
-    if(micBtn) micBtn.onclick = () => toggleMic();
-
-    const camBtn = document.getElementById('camera-btn');
-    if(camBtn) camBtn.onclick = () => toggleCam();
+    // Chat
+    document.getElementById('send-chat').onclick = () => {
+        const input = document.getElementById('chat-input');
+        if(!input.value.trim()) return;
+        appendMessage(input.value, 'self');
+        if(dataConn) dataConn.send({type: 'chat', msg: input.value, user: userName});
+        input.value = "";
+    };
 });
 
-// --- FUNKSIONET E KONTROLLIT ---
+// --- FUNKSIONET PRO ---
 
-// Mute/Unmute
-window.toggleMic = function() {
-    if (!myStream) return;
-    isMicOn = !isMicOn;
-    myStream.getAudioTracks()[0].enabled = isMicOn;
-    const btn = document.getElementById('mic-btn');
-    btn.classList.toggle('btn-danger', !isMicOn);
-    btn.innerHTML = isMicOn ? '<i class="fas fa-microphone"></i>' : '<i class="fas fa-microphone-slash"></i>';
-};
-
-// Camera On/Off
-window.toggleCam = function() {
-    if (!myStream) return;
-    isCamOn = !isCamOn;
-    myStream.getVideoTracks()[0].enabled = isCamOn;
-    const btn = document.getElementById('camera-btn');
-    btn.classList.toggle('btn-danger', !isCamOn);
-    btn.innerHTML = isCamOn ? '<i class="fas fa-video"></i>' : '<i class="fas fa-video-slash"></i>';
-};
-
-// Screen Share
-window.toggleScreenShare = async function() {
-    try {
-        if (!screenStream) {
-            screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-            const videoTrack = screenStream.getVideoTracks()[0];
-            
-            if (currentPeerCall) {
-                const sender = currentPeerCall.peerConnection.getSenders().find(s => s.track.kind === 'video');
-                sender.replaceTrack(videoTrack);
-            }
-            
-            document.getElementById('local-video').srcObject = screenStream;
-            videoTrack.onended = () => stopScreenShare();
-            document.getElementById('screen-btn').classList.add('btn-primary');
-        } else {
-            stopScreenShare();
-        }
-    } catch (err) {
-        console.error("Screen Share Error:", err);
-    }
-};
-
-function stopScreenShare() {
-    if (!screenStream) return;
-    screenStream.getTracks().forEach(track => track.stop());
-    screenStream = null;
-    
-    const videoTrack = myStream.getVideoTracks()[0];
-    if (currentPeerCall) {
-        const sender = currentPeerCall.peerConnection.getSenders().find(s => s.track.kind === 'video');
-        sender.replaceTrack(videoTrack);
-    }
-    document.getElementById('local-video').srcObject = myStream;
-    document.getElementById('screen-btn').classList.remove('btn-primary');
-}
-
-// Record Meeting
-window.toggleRecord = function() {
-    const recordBtn = document.getElementById('record-btn');
-    if (!mediaRecorder || mediaRecorder.state === "inactive") {
-        recordedChunks = [];
-        mediaRecorder = new MediaRecorder(myStream);
-        mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
-        mediaRecorder.onstop = () => {
-            const blob = new Blob(recordedChunks, { type: 'video/webm' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url; a.download = 'NextMeet-Takimi.webm'; a.click();
-        };
-        mediaRecorder.start();
-        recordBtn.classList.add('recording-active');
-        alert("Regjistrimi nisi!");
-    } else {
-        mediaRecorder.stop();
-        recordBtn.classList.remove('recording-active');
-        alert("Regjistrimi u ndalua dhe po shkarkohet.");
-    }
-};
-
-// AI Blur Background
-function setupAIBlur() {
-    canvasElement = document.createElement('canvas');
-    canvasCtx = canvasElement.getContext('2d');
-    selfieSegmentation = new SelfieSegmentation({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`});
-    selfieSegmentation.setOptions({modelSelection: 1});
-    selfieSegmentation.onResults(onBlurResults);
-}
-
-window.toggleBlur = function() {
-    isBlurActive = !isBlurActive;
-    const blurBtn = document.getElementById('blur-btn');
-    blurBtn.classList.toggle('btn-primary', isBlurActive);
-    if (isBlurActive) {
-        requestAnimationFrame(processBlur);
-    } else {
-        document.getElementById('local-video').srcObject = myStream;
-    }
-};
-
+// AI Blur Background (Me dërgim te partneri)
 async function processBlur() {
     if (!isBlurActive) return;
     const video = document.getElementById('local-video');
@@ -298,80 +158,160 @@ async function processBlur() {
 }
 
 function onBlurResults(results) {
-    canvasElement.width = 640; canvasElement.height = 360;
     canvasCtx.save();
     canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
     canvasCtx.drawImage(results.segmentationMask, 0, 0, canvasElement.width, canvasElement.height);
     canvasCtx.globalCompositeOperation = 'source-in';
     canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
     canvasCtx.globalCompositeOperation = 'destination-over';
-    canvasCtx.filter = 'blur(10px)';
+    canvasCtx.filter = 'blur(15px)';
     canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
     canvasCtx.restore();
-    
-    // Ky pjesë do të shfaqet vetëm lokalisht për performancë
-    // Për ta dërguar te tjetri duhet replaceTrack me captureStream()
 }
 
-// --- DATA & MESSAGING ---
+window.toggleBlur = async function() {
+    isBlurActive = !isBlurActive;
+    const btn = document.getElementById('blur-btn');
+    btn.classList.toggle('active', isBlurActive);
 
+    if (isBlurActive) {
+        const canvasStream = canvasElement.captureStream(30);
+        const videoTrack = canvasStream.getVideoTracks()[0];
+        if (currentPeerCall) {
+            const sender = currentPeerCall.peerConnection.getSenders().find(s => s.track.kind === 'video');
+            sender.replaceTrack(videoTrack);
+        }
+        document.getElementById('local-video').srcObject = canvasStream;
+        processBlur();
+    } else {
+        const originalTrack = myStream.getVideoTracks()[0];
+        if (currentPeerCall) {
+            const sender = currentPeerCall.peerConnection.getSenders().find(s => s.track.kind === 'video');
+            sender.replaceTrack(originalTrack);
+        }
+        document.getElementById('local-video').srcObject = myStream;
+    }
+};
+
+// Whiteboard
+function setupWhiteboard() {
+    wbCanvas = document.getElementById('whiteboard-canvas');
+    wbCtx = wbCanvas.getContext('2d');
+    wbCanvas.width = window.innerWidth;
+    wbCanvas.height = window.innerHeight;
+
+    wbCanvas.onmousedown = () => drawing = true;
+    wbCanvas.onmouseup = () => { drawing = false; wbCtx.beginPath(); };
+    wbCanvas.onmousemove = (e) => {
+        if (!drawing) return;
+        wbCtx.lineWidth = 3;
+        wbCtx.lineCap = 'round';
+        wbCtx.strokeStyle = document.getElementById('wb-color').value;
+        wbCtx.lineTo(e.clientX, e.clientY - 40);
+        wbCtx.stroke();
+        if(dataConn) dataConn.send({type: 'draw', x: e.clientX, y: e.clientY - 40, color: wbCtx.strokeStyle});
+    };
+}
+
+window.toggleWhiteboard = function() {
+    const wb = document.getElementById('whiteboard-overlay');
+    const isVisible = wb.style.display === 'flex';
+    wb.style.display = isVisible ? 'none' : 'flex';
+};
+
+// AI Captions (Speech Recognition)
+window.toggleCaptions = function() {
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = 'sq-AL';
+    isCaptionsActive = !isCaptionsActive;
+    
+    document.getElementById('caption-box').classList.toggle('d-none', !isCaptionsActive);
+    document.getElementById('caption-btn').classList.toggle('btn-primary', isCaptionsActive);
+
+    if (isCaptionsActive) {
+        recognition.start();
+        recognition.onresult = (event) => {
+            const text = event.results[0][0].transcript;
+            document.getElementById('caption-text').innerText = text;
+            if(dataConn) dataConn.send({type: 'caption', msg: text});
+        };
+        recognition.onend = () => { if(isCaptionsActive) recognition.start(); };
+    } else {
+        recognition.stop();
+    }
+};
+
+// --- DATA LISTENERS ---
 function setupDataListeners() {
     if(!dataConn) return;
     dataConn.on('data', data => {
-        if (data.type === 'chat') appendMessage(data.msg, 'remote');
-        if (data.type === 'reaction') showReaction(data.emoji, 'remote');
+        switch(data.type) {
+            case 'chat': appendMessage(data.msg, 'remote'); break;
+            case 'reaction': showReaction(data.emoji, 'remote'); break;
+            case 'draw': 
+                wbCtx.strokeStyle = data.color;
+                wbCtx.lineTo(data.x, data.y);
+                wbCtx.stroke();
+                break;
+            case 'caption':
+                document.getElementById('caption-box').classList.remove('d-none');
+                document.getElementById('caption-text').innerText = data.msg;
+                break;
+        }
     });
 }
 
-function appendMessage(msg, sender) {
-    const chatMessages = document.getElementById('chat-messages');
-    if (!chatMessages) return;
-    const div = document.createElement('div');
-    div.className = `message ${sender === 'self' ? 'msg-self' : 'msg-remote'} mb-2 p-2 rounded shadow-sm`;
-    div.innerText = msg;
-    chatMessages.appendChild(div);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-}
-
-window.copyMyId = function() { 
-    const myIdEl = document.getElementById('my-id');
-    if (!myIdEl) return;
-    const id = myIdEl.innerText;
-    navigator.clipboard.writeText(id).then(() => {
-        alert("ID u kopjua!");
-    });
+// Kontrollet tjera (Mute, Cam, Screen)
+window.toggleMic = function() {
+    isMicOn = !isMicOn;
+    myStream.getAudioTracks()[0].enabled = isMicOn;
+    document.getElementById('mic-btn').classList.toggle('btn-danger', !isMicOn);
 };
 
-window.leaveMeeting = function() { 
-    if(confirm("Dëshiron të largohesh?")) location.reload(); 
+window.toggleCam = function() {
+    isCamOn = !isCamOn;
+    myStream.getVideoTracks()[0].enabled = isCamOn;
+    document.getElementById('camera-btn').classList.toggle('btn-danger', !isCamOn);
+};
+
+window.copyMyId = function() {
+    navigator.clipboard.writeText(document.getElementById('my-id').innerText);
+    alert("ID u kopjua!");
 };
 
 window.sendReaction = function(emoji) {
-    if(dataConn && dataConn.open) {
-        dataConn.send({type: 'reaction', emoji: emoji});
-    }
+    if(dataConn) dataConn.send({type: 'reaction', emoji: emoji});
     showReaction(emoji, 'local');
 };
 
 function showReaction(emoji, origin) {
     const container = document.getElementById(`reaction-container-${origin}`);
-    if (!container) return;
     const el = document.createElement('div');
     el.innerText = emoji;
-    el.className = 'reaction-animate'; 
-    const randomOffset = Math.floor(Math.random() * 40) - 20;
-    el.style.left = `calc(50% + ${randomOffset}px)`;
+    el.className = 'reaction-animate';
     container.appendChild(el);
-    setTimeout(() => { if (el.parentNode) el.remove(); }, 2000);
+    setTimeout(() => el.remove(), 2000);
+}
+
+function appendMessage(msg, sender) {
+    const div = document.createElement('div');
+    div.className = `message ${sender === 'self' ? 'msg-self' : 'msg-remote'} mb-2 p-2`;
+    div.innerHTML = `<strong>${sender === 'self' ? 'Ti' : 'Partneri'}:</strong> <br> ${msg}`;
+    document.getElementById('chat-messages').appendChild(div);
+}
+
+function setupAIBlur() {
+    canvasElement = document.createElement('canvas');
+    canvasElement.width = 1280; canvasElement.height = 720;
+    canvasCtx = canvasElement.getContext('2d');
+    selfieSegmentation = new SelfieSegmentation({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`});
+    selfieSegmentation.setOptions({modelSelection: 1});
+    selfieSegmentation.onResults(onBlurResults);
 }
 
 function playNotificationSound() {
-    try {
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        const context = new AudioContext();
-        const osc = context.createOscillator();
-        osc.connect(context.destination);
-        osc.start();
-        osc.stop(context.currentTime + 0.1);
-    } catch(e) {}
+    const audio = new Audio('https://www.soundjay.com/buttons/beep-07a.mp3');
+    audio.play();
 }
+
+window.leaveMeeting = () => { if(confirm("Largohesh?")) location.reload(); };
