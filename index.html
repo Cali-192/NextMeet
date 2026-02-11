@@ -30,6 +30,12 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
 
+        /* FIX: Placeholder visibility */
+        ::placeholder {
+            color: rgba(255, 255, 255, 0.6) !important;
+            opacity: 1;
+        }
+
         #auth-overlay {
             position: fixed;
             inset: 0;
@@ -48,6 +54,22 @@
             background: rgba(20, 20, 20, 0.95);
             border-radius: 25px;
             backdrop-filter: blur(15px);
+        }
+
+        /* FIX: Reaction Animation */
+        .reaction-animate {
+            position: absolute;
+            font-size: 2.5rem;
+            pointer-events: none;
+            animation: flyUp 2s ease-out forwards;
+            z-index: 2000;
+            left: 50%;
+            top: 50%;
+        }
+
+        @keyframes flyUp {
+            0% { transform: translate(-50%, 0) scale(1); opacity: 1; }
+            100% { transform: translate(-50%, -250px) scale(1.5); opacity: 0; }
         }
 
         .visible-slogan {
@@ -93,7 +115,6 @@
             object-fit: cover;
         }
 
-        /* Klasa për butonin Record kur është aktiv */
         .recording-active {
             background-color: #dc3545 !important;
             animation: pulse-red 1.5s infinite;
@@ -105,7 +126,6 @@
             100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
         }
 
-        /* --- Whiteboard Styles --- */
         #whiteboard-overlay {
             position: absolute;
             inset: 0;
@@ -120,7 +140,6 @@
             cursor: crosshair;
         }
 
-        /* --- Caption Box --- */
         #caption-box {
             position: absolute;
             bottom: 100px;
@@ -267,7 +286,7 @@
                         <div class="position-absolute bottom-0 start-0 p-2 w-100" style="background: linear-gradient(transparent, rgba(0,0,0,0.7));">
                             <span class="small fw-bold" id="local-name-display">Ti</span>
                         </div>
-                        <div id="reaction-container-local" class="position-absolute top-50 start-50 translate-middle"></div>
+                        <div id="reaction-container-local" style="position: absolute; inset: 0; pointer-events: none;"></div>
                     </div>
                     
                     <div class="video-item" id="remote-wrapper">
@@ -276,7 +295,7 @@
                             <div class="spinner-border text-primary mb-2"></div>
                             <p class="small">Duke pritur partnerin...</p>
                         </div>
-                        <div id="reaction-container-remote" class="position-absolute top-50 start-50 translate-middle"></div>
+                        <div id="reaction-container-remote" style="position: absolute; inset: 0; pointer-events: none;"></div>
                     </div>
                 </div>
             </main>
@@ -297,8 +316,8 @@
 
         <footer class="controls-bar d-flex justify-content-between align-items-center bg-black border-top border-secondary px-4 py-3">
             <div class="d-flex gap-2">
-                <button id="mic-btn" class="btn btn-dark rounded-circle p-3"><i class="fas fa-microphone"></i></button>
-                <button id="camera-btn" class="btn btn-dark rounded-circle p-3"><i class="fas fa-video"></i></button>
+                <button id="mic-btn" onclick="toggleMic()" class="btn btn-dark rounded-circle p-3"><i class="fas fa-microphone"></i></button>
+                <button id="camera-btn" onclick="toggleCam()" class="btn btn-dark rounded-circle p-3"><i class="fas fa-video"></i></button>
                 <button id="screen-btn" onclick="toggleScreenShare()" class="btn btn-dark rounded-circle p-3" title="Shpërndaj Ekranin">
                     <i class="fas fa-desktop"></i>
                 </button>
