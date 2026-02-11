@@ -17,7 +17,7 @@ const peer = new Peer(undefined, {
     debug: 1
 });
 
-// --- 1. LOGIN & HYRJA (E lidhur direkt me window) ---
+// --- 1. LOGIN & HYRJA ---
 window.startMeeting = function() {
     console.log("Tentim për login...");
     
@@ -46,12 +46,16 @@ window.startMeeting = function() {
     
     userName = emri;
     
+    // Feedback vizual
     if (loginBtn) {
         loginBtn.innerHTML = 'Duke u lidhur...';
         loginBtn.disabled = true;
     }
 
-    if (authOverlay) authOverlay.style.display = 'none';
+    // RRREGULLIMI: Hiqet overlay menjëherë që të mos bllokohet faqja
+    if (authOverlay) {
+        authOverlay.style.display = 'none';
+    }
 
     // Aktivizimi i audios për mobil
     const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -60,6 +64,7 @@ window.startMeeting = function() {
         if (audioCtx.state === 'suspended') audioCtx.resume();
     }
 
+    // Nis median
     initMedia();
 };
 
@@ -76,6 +81,8 @@ async function initMedia() {
         if (localVideo) {
             localVideo.srcObject = stream;
             localVideo.muted = true;
+            // SHTESA: playsinline është i domosdoshëm për mobil
+            localVideo.setAttribute('playsinline', 'true');
             localVideo.play().catch(e => console.error("Video Play Error:", e));
         }
         
@@ -88,7 +95,8 @@ async function initMedia() {
 
     } catch (err) {
         console.error("Media Error:", err);
-        alert("Duhet HTTPS dhe leje për kamerën!");
+        // Nëse përdoruesi refuzon kamerën, prapë e lejmë të shohë takimin
+        alert("Nuk u qasëm në kamerë. Sigurohu që ke dhënë leje (Allow).");
     }
 }
 
@@ -108,7 +116,10 @@ window.lobbyDecision = function(accepted) {
         
         pendingCall.on('stream', userStream => {
             const remoteVideo = document.getElementById('remote-video');
-            if (remoteVideo) remoteVideo.srcObject = userStream;
+            if (remoteVideo) {
+                remoteVideo.srcObject = userStream;
+                remoteVideo.setAttribute('playsinline', 'true');
+            }
         });
 
         dataConn = peer.connect(pendingCall.peer);
@@ -116,10 +127,9 @@ window.lobbyDecision = function(accepted) {
     }
 };
 
-// --- 4. Inicializimi i Eventeve (Pritet që HTML të jetë gati) ---
+// --- 4. Inicializimi i Eventeve ---
 document.addEventListener('DOMContentLoaded', () => {
     
-    // Connect Butoni
     const connectBtn = document.getElementById('connect-btn');
     if (connectBtn) {
         connectBtn.onclick = () => {
@@ -132,7 +142,10 @@ document.addEventListener('DOMContentLoaded', () => {
             
             call.on('stream', s => { 
                 const remoteVideo = document.getElementById('remote-video');
-                if (remoteVideo) remoteVideo.srcObject = s; 
+                if (remoteVideo) {
+                    remoteVideo.srcObject = s; 
+                    remoteVideo.setAttribute('playsinline', 'true');
+                }
             });
 
             dataConn = peer.connect(id);
@@ -140,7 +153,6 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // Chat Butoni
     const sendChat = document.getElementById('send-chat');
     if (sendChat) {
         sendChat.onclick = () => {
