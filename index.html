@@ -2,15 +2,17 @@
 <html lang="sq">
 <head>
     <meta charset="UTF-8">
-   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>NextMeet | Next-Gen Video Conferencing</title>
+    
     <link rel="icon" type="image/svg+xml" href="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/solid/bolt.svg">
+    <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/solid/bolt.svg">
+    <link rel="manifest" href="/zoom/manifest.json">
 
-<link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#000000">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black">
-<meta name="apple-mobile-web-app-title" content="NextMeet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -19,16 +21,31 @@
     
     <link rel="stylesheet" href="zoom.css">
     <style>
-        /* Rregullime emergjente për dukshmëri dhe klikim */
+        /* Rregullime për t'u përshtatur në çdo ekran (Responsive) */
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* Ndalon lëvizjet e tepërta anash */
+            background-color: #000;
+        }
+
         #auth-overlay {
             pointer-events: all !important;
             z-index: 100000 !important;
+            padding: 20px;
+            width: 100vw;
+            height: 100vh;
         }
+
         .auth-card {
             pointer-events: all !important;
             z-index: 100001 !important;
             border: 1px solid rgba(255,255,255,0.2) !important;
+            max-width: 100%; /* Siguron që nuk del jashtë ekranit në telefon */
+            width: 420px;
         }
+
         /* Rregullimi i tekstit që nuk shihej */
         .visible-slogan {
             color: rgba(255, 255, 255, 0.7) !important;
@@ -43,12 +60,17 @@
             z-index: 100002 !important;
             cursor: pointer !important;
         }
+
+        /* Fix për kontrollet në Mobile që të mos mbivendosen me vijën e iPhone/Android */
+        footer.controls-bar {
+            padding-bottom: calc(1rem + env(safe-area-inset-bottom)) !important;
+        }
     </style>
 </head>
 <body class="bg-dark text-white">
 
     <div id="auth-overlay" class="position-fixed inset-0 d-flex align-items-center justify-content-center" style="background: radial-gradient(circle at center, #1a1a1a 0%, #000000 100%);">
-        <div class="card auth-card bg-dark shadow-lg p-4 p-md-5" style="width: 420px; border-radius: 25px; backdrop-filter: blur(15px);">
+        <div class="card auth-card bg-dark shadow-lg p-4 p-md-5" style="border-radius: 25px; backdrop-filter: blur(15px);">
             <div class="text-center mb-4">
                 <div class="logo-icon bg-primary rounded-4 mx-auto mb-3 d-flex align-items-center justify-content-center shadow-primary" style="width: 65px; height: 65px; box-shadow: 0 0 25px rgba(13, 110, 253, 0.5);">
                     <i class="fas fa-bolt text-white fa-2x"></i>
@@ -302,7 +324,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Funksioni Ndihmë (Shtuar direkt këtu për siguri)
         function showHelp() {
             alert("Për të hyrë në takimin NextMeet:\n1. Shkruani emrin tuaj.\n2. Fjalëkalimi është: 1234");
         }
