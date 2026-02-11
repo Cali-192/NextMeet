@@ -10,6 +10,7 @@ let userName = "Përdorues";
 let isMicOn = true;
 let isCamOn = true;
 let screenStream = null;
+let isRecording = false;
 
 // Variablat për Record, AI Blur dhe Whiteboard
 let mediaRecorder;
@@ -43,13 +44,11 @@ window.startMeeting = function() {
     
     userName = emri;
     
-    // Përditëso UI menjëherë
     if (document.getElementById('local-name-display')) 
         document.getElementById('local-name-display').innerText = emri;
     if (document.getElementById('local-participant-name')) 
         document.getElementById('local-participant-name').innerText = emri + " (Ti)";
     
-    // Fsheh overlay-in
     if (authOverlay) {
         authOverlay.style.opacity = '0';
         setTimeout(() => {
@@ -57,8 +56,8 @@ window.startMeeting = function() {
         }, 500);
     }
 
-    // Nis median
     initMedia();
+    monitorNetwork();
 };
 
 // --- 2. Kamera dhe Mikrofoni ---
@@ -77,7 +76,6 @@ async function initMedia() {
             localVideo.play().catch(e => console.warn("Video blocked"));
         }
         
-        // Dëgjo për thirrje hyrëse
         peer.on('call', call => {
             pendingCall = call;
             const lobby = document.getElementById('lobby-modal');
@@ -85,7 +83,6 @@ async function initMedia() {
             playNotificationSound(); 
         });
 
-        // Dëgjo për lidhje të dhënash (Chat/Reactions)
         peer.on('connection', conn => {
             dataConn = conn;
             setupDataListeners();
@@ -102,11 +99,27 @@ async function initMedia() {
     }
 }
 
-// --- 3. PeerJS Setup ---
+// --- 3. PeerJS Setup & Network Monitoring ---
 peer.on('open', id => {
     const myIdDisplay = document.getElementById('my-id');
     if (myIdDisplay) myIdDisplay.innerText = id;
 });
+
+function monitorNetwork() {
+    const statusTag = document.getElementById('network-text');
+    setInterval(() => {
+        if (peer.disconnected || peer.destroyed) {
+            statusTag.innerText = "LIDHJA: SHKËPUTUR";
+            statusTag.style.color = "#ff4757";
+        } else if (dataConn && dataConn.open) {
+            statusTag.innerText = "LIDHJA: SUPER";
+            statusTag.style.color = "#00e676";
+        } else {
+            statusTag.innerText = "LIDHJA: NE PRITJE";
+            statusTag.style.color = "#ffb800";
+        }
+    }, 3000);
+}
 
 window.lobbyDecision = function(accepted) {
     const lobby = document.getElementById('lobby-modal');
@@ -125,15 +138,13 @@ window.lobbyDecision = function(accepted) {
             }
         });
 
-        // Krijojmë lidhjen e të dhënave automatikisht pas pranimit të thirrjes
         dataConn = peer.connect(pendingCall.peer);
         setupDataListeners();
     }
 };
 
-// --- 4. Inicializimi i Eventeve ---
+// --- 4. Inicializimi i Eventeve & Butonat e Ri ---
 document.addEventListener('DOMContentLoaded', () => {
-    // Butoni Connect
     const connectBtn = document.getElementById('connect-btn');
     if (connectBtn) {
         connectBtn.onclick = () => {
@@ -160,33 +171,22 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // Butoni Chat (Enter key support)
-    const chatInput = document.getElementById('chat-input');
-    if (chatInput) {
-        chatInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') document.getElementById('send-chat').click();
-        });
-    }
-
     const sendBtn = document.getElementById('send-chat');
     if (sendBtn) {
         sendBtn.onclick = () => {
             const input = document.getElementById('chat-input');
             if(!input || !input.value.trim()) return;
-            
             const mesazhi = input.value.trim();
             appendMessage(mesazhi, 'self');
-            
-            if(dataConn && dataConn.open) {
-                dataConn.send({type: 'chat', msg: mesazhi, user: userName});
-            }
+            if(dataConn && dataConn.open) dataConn.send({type: 'chat', msg: mesazhi, user: userName});
             input.value = "";
         };
     }
 });
 
-// --- FUNKSIONET E KONTROLLIT ---
+// --- FUNKSIONET E KONTROLLIT TË BUTONAVE ---
 
+// Butoni 1 & 2: Mic & Cam
 window.toggleMic = function() {
     if (!myStream) return;
     isMicOn = !isMicOn;
@@ -209,20 +209,93 @@ window.toggleCam = function() {
     }
 };
 
-window.toggleWhiteboard = function() {
-    const wb = document.getElementById('whiteboard-overlay');
-    if (!wb) return;
-    const isVisible = wb.style.display === 'flex';
-    wb.style.display = isVisible ? 'none' : 'flex';
-    if (!isVisible) setupWhiteboard(); // Sigurohemi që canvas ka përmasat e duhura
+// Butoni 3: Share Screen
+window.toggleScreenShare = async function() {
+    try {
+        if (!screenStream) {
+            screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+            const videoTrack = screenStream.getVideoTracks()[0];
+            
+            if (currentPeerCall) {
+                const sender = currentPeerCall.peerConnection.getSenders().find(s => s.track.kind === 'video');
+                sender.replaceTrack(videoTrack);
+            }
+
+            document.getElementById('local-video').srcObject = screenStream;
+            videoTrack.onended = () => stopScreenShare();
+            document.getElementById('screen-btn').classList.add('btn-primary');
+        } else {
+            stopScreenShare();
+        }
+    } catch (err) { console.error(err); }
 };
 
+function stopScreenShare() {
+    if (screenStream) {
+        screenStream.getTracks().forEach(t => t.stop());
+        screenStream = null;
+    }
+    const videoTrack = myStream.getVideoTracks()[0];
+    if (currentPeerCall) {
+        const sender = currentPeerCall.peerConnection.getSenders().find(s => s.track.kind === 'video');
+        sender.replaceTrack(videoTrack);
+    }
+    document.getElementById('local-video').srcObject = myStream;
+    document.getElementById('screen-btn').classList.remove('btn-primary');
+}
+
+// Butoni 4: Whiteboard
+window.toggleWhiteboard = function() {
+    const wb = document.getElementById('whiteboard-overlay');
+    const isVisible = wb.style.display === 'flex';
+    wb.style.display = isVisible ? 'none' : 'flex';
+    if (!isVisible) setupWhiteboard();
+};
+
+// Butoni 5: Participants
+window.toggleParticipants = function() {
+    const panel = document.getElementById('participants-panel');
+    panel.classList.toggle('d-none');
+};
+
+// Butoni 6: AI Blur
+window.toggleBlur = function() {
+    if (typeof SelfieSegmentation === 'undefined') return alert("Libraria AI po ngarkohet...");
+    isBlurActive = !isBlurActive;
+    const btn = document.getElementById('blur-btn');
+    btn.classList.toggle('btn-primary', isBlurActive);
+    if (!isBlurActive) document.getElementById('local-video').srcObject = myStream;
+};
+
+// Butoni 7: Record (Rrethi i Kuq)
+window.toggleRecord = function() {
+    if (!isRecording) {
+        recordedChunks = [];
+        mediaRecorder = new MediaRecorder(myStream);
+        mediaRecorder.ondataavailable = (e) => recordedChunks.push(e.data);
+        mediaRecorder.onstop = () => {
+            const blob = new Blob(recordedChunks, { type: "video/webm" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url; a.download = "NextMeet_Record.webm"; a.click();
+        };
+        mediaRecorder.start();
+        isRecording = true;
+        document.getElementById('record-btn').classList.add('btn-danger');
+        alert("Regjistrimi nisi!");
+    } else {
+        mediaRecorder.stop();
+        isRecording = false;
+        document.getElementById('record-btn').classList.remove('btn-danger');
+        alert("Regjistrimi u ruajt!");
+    }
+};
+
+// --- LOGJIKA E WHITEBOARD ---
 function setupWhiteboard() {
     wbCanvas = document.getElementById('whiteboard-canvas');
     if (!wbCanvas) return;
     wbCtx = wbCanvas.getContext('2d');
-    
-    // Rregullo përmasat sipas dritares
     wbCanvas.width = wbCanvas.offsetWidth;
     wbCanvas.height = wbCanvas.offsetHeight;
 
@@ -233,20 +306,15 @@ function setupWhiteboard() {
         const rect = wbCanvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-
         wbCtx.lineWidth = 3;
-        wbCtx.lineCap = 'round';
         wbCtx.strokeStyle = document.getElementById('wb-color')?.value || "#0d6efd";
-        
         wbCtx.lineTo(x, y);
         wbCtx.stroke();
-
-        if(dataConn && dataConn.open) {
-            dataConn.send({type: 'draw', x: x, y: y, color: wbCtx.strokeStyle, isNewPath: false});
-        }
+        if(dataConn?.open) dataConn.send({type: 'draw', x: x, y: y, color: wbCtx.strokeStyle});
     };
 }
 
+// --- UTILITIES ---
 function setupDataListeners() {
     if(!dataConn) return;
     dataConn.on('data', data => {
@@ -262,61 +330,41 @@ function setupDataListeners() {
 
 function appendMessage(msg, sender, remoteUser = "Partneri") {
     const chatMessages = document.getElementById('chat-messages');
-    if (!chatMessages) return;
-    
     const div = document.createElement('div');
     div.className = `chat-message shadow-sm`;
-    div.innerHTML = `
-        <span class="user">${sender === 'self' ? 'Ti' : remoteUser}</span>
-        <span class="text">${msg}</span>
-    `;
+    div.innerHTML = `<span class="user">${sender === 'self' ? 'Ti' : remoteUser}</span><span class="text">${msg}</span>`;
     chatMessages.appendChild(div);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
 window.copyMyId = function() {
     const id = document.getElementById('my-id').innerText;
-    navigator.clipboard.writeText(id).then(() => {
-        const btn = document.querySelector('[onclick="copyMyId()"] i');
-        btn.className = "fas fa-check text-success";
-        setTimeout(() => btn.className = "far fa-copy", 2000);
-    });
+    navigator.clipboard.writeText(id).then(() => alert("ID u kopjua!"));
 };
 
 window.sendReaction = function(emoji) {
-    if(dataConn && dataConn.open) {
-        dataConn.send({type: 'reaction', emoji: emoji});
-    }
+    if(dataConn?.open) dataConn.send({type: 'reaction', emoji: emoji});
     showReaction(emoji, 'local');
 };
 
 function showReaction(emoji, origin) {
     const container = document.getElementById(`reaction-container-${origin}`);
     if (!container) return;
-    
     const el = document.createElement('div');
     el.innerText = emoji;
     el.className = 'reaction-animate';
-    
-    // Pozicionim random paksa majtas/djathtas për efekt më natyral
     const randomOffset = Math.floor(Math.random() * 40) - 20;
     el.style.left = `calc(50% + ${randomOffset}px)`;
-    
     container.appendChild(el);
     setTimeout(() => el.remove(), 2500);
 }
 
 function playNotificationSound() {
-    const audio = new Audio('https://www.soundjay.com/buttons/beep-07a.mp3');
-    audio.play().catch(e => {});
+    new Audio('https://www.soundjay.com/buttons/beep-07a.mp3').play().catch(() => {});
 }
 
 window.clearWhiteboard = function() {
     if(wbCtx) wbCtx.clearRect(0, 0, wbCanvas.width, wbCanvas.height);
 };
 
-window.leaveMeeting = () => { 
-    if(confirm("Dëshiron të largohesh nga ky takim?")) {
-        location.reload(); 
-    }
-};
+window.leaveMeeting = () => { if(confirm("Dëshiron të largohesh?")) location.reload(); };
