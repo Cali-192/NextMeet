@@ -17,33 +17,42 @@ const peer = new Peer(undefined, {
     debug: 1
 });
 
-// --- 1. LOGIN & HYRJA (E rregulluar për shpejtësi maksimale) ---
+// --- 1. LOGIN & HYRJA (E lidhur direkt me window për mobil) ---
 window.startMeeting = function() {
+    console.log("Butoni u klikua...");
+    
     const nameInput = document.getElementById('user-name-input');
     const passInput = document.getElementById('meeting-pass-input');
     const authOverlay = document.getElementById('auth-overlay');
     const loginBtn = document.getElementById('start-btn'); 
     
-    if (!nameInput || !passInput) return;
+    // Sigurohemi që inputet ekzistojnë në DOM
+    if (!nameInput || !passInput) {
+        console.error("Elementet nuk u gjetën!");
+        return;
+    }
 
     if (!nameInput.value.trim()) {
         alert("Shkruani emrin!");
+        nameInput.focus();
         return;
     }
 
     if (passInput.value !== "1234") {
         alert("Fjalëkalimi i pasaktë!");
+        passInput.value = "";
         return;
     }
     
     userName = nameInput.value.trim();
     
+    // Ndryshimi i gjendjes së butonit për feedback vizual
     if (loginBtn) {
-        loginBtn.innerHTML = 'Duke u lidhur...';
+        loginBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Duke u lidhur...';
         loginBtn.disabled = true;
     }
 
-    // Hiq overlay-n menjëherë
+    // Hiq overlay-n
     if (authOverlay) {
         authOverlay.style.display = 'none';
     }
@@ -52,14 +61,15 @@ window.startMeeting = function() {
     const localPartSpan = document.querySelector('#local-participant span');
     if (localPartSpan) localPartSpan.innerText = userName + " (Ti)";
     
-    // Aktivizo Audio për Browserin
+    // Zhblloko AudioContext për mobil (duhet klikim njerëzor)
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (AudioContext) {
         const audioCtx = new AudioContext();
         if (audioCtx.state === 'suspended') audioCtx.resume();
     }
 
-    initMedia(); // Nis kamerën pasi klikohet butoni
+    // Nis kamerën
+    initMedia();
 };
 
 // --- 2. Kamera dhe Mikrofoni ---
@@ -75,9 +85,10 @@ async function initMedia() {
         if (localVideo) {
             localVideo.srcObject = stream;
             localVideo.muted = true;
+            localVideo.play().catch(e => console.error("Autoplay failed:", e));
         }
         
-        // Prano thirrjet automatikisht pasi jemi brenda
+        // Setup për thirrjet hyrëse
         peer.on('call', call => {
             pendingCall = call;
             const lobby = document.getElementById('lobby-modal');
@@ -87,7 +98,13 @@ async function initMedia() {
 
     } catch (err) {
         console.error("Media Error:", err);
-        alert("Ju lutem jepni leje për kamerën dhe mikrofonin!");
+        alert("Gabim në aksesimin e kamerës. Sigurohu që je në HTTPS dhe ke dhënë leje.");
+        // Rikthe butonin në gjendje normale nëse dështon media
+        const loginBtn = document.getElementById('start-btn');
+        if (loginBtn) {
+            loginBtn.innerHTML = 'HYR NË TAKIM';
+            loginBtn.disabled = false;
+        }
     }
 }
 
@@ -95,6 +112,7 @@ async function initMedia() {
 peer.on('open', id => {
     const myIdDisplay = document.getElementById('my-id');
     if (myIdDisplay) myIdDisplay.innerText = id;
+    console.log("ID-ja ime PeerJS:", id);
 });
 
 window.lobbyDecision = function(accepted) {
@@ -116,25 +134,28 @@ window.lobbyDecision = function(accepted) {
 };
 
 // --- 4. Chat & Lidhja ---
-const connectBtn = document.getElementById('connect-btn');
-if (connectBtn) {
-    connectBtn.onclick = () => {
-        const remoteIdInput = document.getElementById('remote-id-input');
-        const id = remoteIdInput ? remoteIdInput.value.trim() : null;
-        if (!id) return alert("Shkruaj ID-në!");
-        
-        const call = peer.call(id, myStream);
-        currentPeerCall = call;
-        
-        call.on('stream', s => { 
-            const remoteVideo = document.getElementById('remote-video');
-            if (remoteVideo) remoteVideo.srcObject = s; 
-        });
+// Përdorim event listener për siguri në elementet statike
+document.addEventListener('DOMContentLoaded', () => {
+    const connectBtn = document.getElementById('connect-btn');
+    if (connectBtn) {
+        connectBtn.onclick = () => {
+            const remoteIdInput = document.getElementById('remote-id-input');
+            const id = remoteIdInput ? remoteIdInput.value.trim() : null;
+            if (!id) return alert("Shkruaj ID-në!");
+            
+            const call = peer.call(id, myStream);
+            currentPeerCall = call;
+            
+            call.on('stream', s => { 
+                const remoteVideo = document.getElementById('remote-video');
+                if (remoteVideo) remoteVideo.srcObject = s; 
+            });
 
-        dataConn = peer.connect(id);
-        setupDataListeners();
-    };
-}
+            dataConn = peer.connect(id);
+            setupDataListeners();
+        };
+    }
+});
 
 function setupDataListeners() {
     if(!dataConn) return;
@@ -148,7 +169,7 @@ function appendMessage(msg, sender) {
     const chatMessages = document.getElementById('chat-messages');
     if (!chatMessages) return;
     const div = document.createElement('div');
-    div.className = `message ${sender === 'self' ? 'msg-self' : 'msg-remote'} mb-2 p-2 rounded`;
+    div.className = `message ${sender === 'self' ? 'msg-self' : 'msg-remote'} mb-2 p-2 rounded shadow-sm`;
     div.innerText = msg;
     chatMessages.appendChild(div);
     chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -158,7 +179,7 @@ const sendChat = document.getElementById('send-chat');
 if (sendChat) {
     sendChat.onclick = () => {
         const chatInput = document.getElementById('chat-input');
-        if(!chatInput.value.trim()) return;
+        if(!chatInput || !chatInput.value.trim()) return;
         appendMessage(chatInput.value, 'self');
         if(dataConn) dataConn.send({type: 'chat', msg: chatInput.value});
         chatInput.value = "";
@@ -167,9 +188,21 @@ if (sendChat) {
 
 // --- 5. Kontrollet ---
 window.copyMyId = function() { 
-    const id = document.getElementById('my-id').innerText;
-    navigator.clipboard.writeText(id);
-    alert("ID u kopjua!");
+    const myIdEl = document.getElementById('my-id');
+    if (!myIdEl) return;
+    const id = myIdEl.innerText;
+    navigator.clipboard.writeText(id).then(() => {
+        alert("ID u kopjua!");
+    }).catch(err => {
+        // Fallback për disa browsera mobilë
+        const textArea = document.createElement("textarea");
+        textArea.value = id;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        alert("ID u kopjua!");
+    });
 };
 
 window.leaveMeeting = function() { 
@@ -193,7 +226,8 @@ function showReaction(emoji, origin) {
 
 function playNotificationSound() {
     try {
-        const context = new (window.AudioContext || window.webkitAudioContext)();
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const context = new AudioContext();
         const osc = context.createOscillator();
         osc.connect(context.destination);
         osc.start();
