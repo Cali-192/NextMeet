@@ -17,58 +17,49 @@ const peer = new Peer(undefined, {
     debug: 1
 });
 
-// --- 1. LOGIN & HYRJA (E lidhur direkt me window për mobil) ---
+// --- 1. LOGIN & HYRJA (E lidhur direkt me window) ---
 window.startMeeting = function() {
-    console.log("Butoni u klikua...");
+    console.log("Tentim për login...");
     
     const nameInput = document.getElementById('user-name-input');
     const passInput = document.getElementById('meeting-pass-input');
     const authOverlay = document.getElementById('auth-overlay');
     const loginBtn = document.getElementById('start-btn'); 
     
-    // Sigurohemi që inputet ekzistojnë në DOM
     if (!nameInput || !passInput) {
-        console.error("Elementet nuk u gjetën!");
+        console.error("Elementet e loginit nuk u gjetën në DOM!");
         return;
     }
 
-    if (!nameInput.value.trim()) {
-        alert("Shkruani emrin!");
-        nameInput.focus();
+    const emri = nameInput.value.trim();
+    const pass = passInput.value.trim();
+
+    if (!emri) {
+        alert("Ju lutem shkruani emrin!");
         return;
     }
 
-    if (passInput.value !== "1234") {
+    if (pass !== "1234") {
         alert("Fjalëkalimi i pasaktë!");
-        passInput.value = "";
         return;
     }
     
-    userName = nameInput.value.trim();
+    userName = emri;
     
-    // Ndryshimi i gjendjes së butonit për feedback vizual
     if (loginBtn) {
-        loginBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Duke u lidhur...';
+        loginBtn.innerHTML = 'Duke u lidhur...';
         loginBtn.disabled = true;
     }
 
-    // Hiq overlay-n
-    if (authOverlay) {
-        authOverlay.style.display = 'none';
-    }
+    if (authOverlay) authOverlay.style.display = 'none';
 
-    // Përditëso UI
-    const localPartSpan = document.querySelector('#local-participant span');
-    if (localPartSpan) localPartSpan.innerText = userName + " (Ti)";
-    
-    // Zhblloko AudioContext për mobil (duhet klikim njerëzor)
+    // Aktivizimi i audios për mobil
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (AudioContext) {
         const audioCtx = new AudioContext();
         if (audioCtx.state === 'suspended') audioCtx.resume();
     }
 
-    // Nis kamerën
     initMedia();
 };
 
@@ -85,10 +76,9 @@ async function initMedia() {
         if (localVideo) {
             localVideo.srcObject = stream;
             localVideo.muted = true;
-            localVideo.play().catch(e => console.error("Autoplay failed:", e));
+            localVideo.play().catch(e => console.error("Video Play Error:", e));
         }
         
-        // Setup për thirrjet hyrëse
         peer.on('call', call => {
             pendingCall = call;
             const lobby = document.getElementById('lobby-modal');
@@ -98,13 +88,7 @@ async function initMedia() {
 
     } catch (err) {
         console.error("Media Error:", err);
-        alert("Gabim në aksesimin e kamerës. Sigurohu që je në HTTPS dhe ke dhënë leje.");
-        // Rikthe butonin në gjendje normale nëse dështon media
-        const loginBtn = document.getElementById('start-btn');
-        if (loginBtn) {
-            loginBtn.innerHTML = 'HYR NË TAKIM';
-            loginBtn.disabled = false;
-        }
+        alert("Duhet HTTPS dhe leje për kamerën!");
     }
 }
 
@@ -112,7 +96,6 @@ async function initMedia() {
 peer.on('open', id => {
     const myIdDisplay = document.getElementById('my-id');
     if (myIdDisplay) myIdDisplay.innerText = id;
-    console.log("ID-ja ime PeerJS:", id);
 });
 
 window.lobbyDecision = function(accepted) {
@@ -133,9 +116,10 @@ window.lobbyDecision = function(accepted) {
     }
 };
 
-// --- 4. Chat & Lidhja ---
-// Përdorim event listener për siguri në elementet statike
+// --- 4. Inicializimi i Eventeve (Pritet që HTML të jetë gati) ---
 document.addEventListener('DOMContentLoaded', () => {
+    
+    // Connect Butoni
     const connectBtn = document.getElementById('connect-btn');
     if (connectBtn) {
         connectBtn.onclick = () => {
@@ -153,6 +137,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
             dataConn = peer.connect(id);
             setupDataListeners();
+        };
+    }
+
+    // Chat Butoni
+    const sendChat = document.getElementById('send-chat');
+    if (sendChat) {
+        sendChat.onclick = () => {
+            const chatInput = document.getElementById('chat-input');
+            if(!chatInput || !chatInput.value.trim()) return;
+            appendMessage(chatInput.value, 'self');
+            if(dataConn) dataConn.send({type: 'chat', msg: chatInput.value});
+            chatInput.value = "";
         };
     }
 });
@@ -175,17 +171,6 @@ function appendMessage(msg, sender) {
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-const sendChat = document.getElementById('send-chat');
-if (sendChat) {
-    sendChat.onclick = () => {
-        const chatInput = document.getElementById('chat-input');
-        if(!chatInput || !chatInput.value.trim()) return;
-        appendMessage(chatInput.value, 'self');
-        if(dataConn) dataConn.send({type: 'chat', msg: chatInput.value});
-        chatInput.value = "";
-    };
-}
-
 // --- 5. Kontrollet ---
 window.copyMyId = function() { 
     const myIdEl = document.getElementById('my-id');
@@ -194,7 +179,6 @@ window.copyMyId = function() {
     navigator.clipboard.writeText(id).then(() => {
         alert("ID u kopjua!");
     }).catch(err => {
-        // Fallback për disa browsera mobilë
         const textArea = document.createElement("textarea");
         textArea.value = id;
         document.body.appendChild(textArea);
