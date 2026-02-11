@@ -104,6 +104,41 @@
             70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
             100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
         }
+
+        /* --- Whiteboard Styles --- */
+        #whiteboard-overlay {
+            position: absolute;
+            inset: 0;
+            background: white;
+            z-index: 1100;
+            display: none;
+            flex-direction: column;
+        }
+        
+        #whiteboard-canvas {
+            flex-grow: 1;
+            cursor: crosshair;
+        }
+
+        /* --- Caption Box --- */
+        #caption-box {
+            position: absolute;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1050;
+            width: 80%;
+            text-align: center;
+            pointer-events: none;
+        }
+
+        #caption-text {
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 10px;
+            display: inline-block;
+        }
     </style>
 </head>
 <body class="bg-dark text-white">
@@ -136,7 +171,7 @@
                         </div>
                     </div>
                     
-                    <button type="button" id="start-btn" onclick="startMeeting()" class="btn btn-primary w-100 fw-bold py-3 rounded-pill shadow-sm">
+                    <button type="submit" id="start-btn" class="btn btn-primary w-100 fw-bold py-3 rounded-pill shadow-sm">
                         HYR NË TAKIM <i class="fas fa-arrow-right ms-2"></i>
                     </button>
                 </form>
@@ -153,6 +188,22 @@
     </div>
 
     <div id="emoji-rain-container"></div>
+
+    <div id="whiteboard-overlay">
+        <div class="bg-dark p-2 d-flex justify-content-between align-items-center">
+            <span class="text-white small fw-bold ms-2">Whiteboard Bashkëpunues</span>
+            <div class="d-flex gap-2">
+                <input type="color" id="wb-color" class="form-control form-control-sm border-0" style="width: 40px; height: 30px; padding: 2px;" value="#0d6efd">
+                <button onclick="clearWhiteboard()" class="btn btn-sm btn-outline-light"><i class="fas fa-eraser"></i></button>
+                <button onclick="toggleWhiteboard()" class="btn btn-sm btn-danger"><i class="fas fa-times"></i></button>
+            </div>
+        </div>
+        <canvas id="whiteboard-canvas"></canvas>
+    </div>
+
+    <div id="caption-box" class="d-none">
+        <div id="caption-text">Duke dëgjuar...</div>
+    </div>
 
     <div class="main-wrapper d-flex flex-column vh-100">
         
@@ -196,6 +247,7 @@
             </aside>
 
             <main class="flex-grow-1 d-flex flex-column position-relative bg-black">
+                
                 <div id="lobby-modal" class="position-absolute top-0 start-50 translate-middle-x mt-3 bg-dark border border-primary p-3 rounded shadow-lg d-none" style="z-index: 2000; width: 300px;">
                     <div class="d-flex align-items-center">
                         <div class="flex-grow-1">
@@ -250,8 +302,14 @@
                 <button id="screen-btn" onclick="toggleScreenShare()" class="btn btn-dark rounded-circle p-3" title="Shpërndaj Ekranin">
                     <i class="fas fa-desktop"></i>
                 </button>
+                <button id="whiteboard-btn" onclick="toggleWhiteboard()" class="btn btn-dark rounded-circle p-3" title="Whiteboard">
+                    <i class="fas fa-chalkboard"></i>
+                </button>
                 <button id="blur-btn" onclick="toggleBlur()" class="btn btn-dark rounded-circle p-3" title="AI Blur Background">
                     <i class="fas fa-user-shield"></i>
+                </button>
+                <button id="caption-btn" onclick="toggleCaptions()" class="btn btn-dark rounded-circle p-3" title="Captions (AI)">
+                    <i class="fas fa-closed-captioning"></i>
                 </button>
                 <button id="record-btn" onclick="toggleRecord()" class="btn btn-dark rounded-circle p-3 text-danger" title="Regjistro">
                     <i class="fas fa-circle"></i>
@@ -271,10 +329,36 @@
         </footer>
     </div>
 
+    <div id="poll-modal" class="modal fade" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark border-primary text-white">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title small fw-bold text-uppercase">Sondazh i Ri</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="small text-muted mb-1">Pyetja</label>
+                        <input type="text" id="poll-question" class="form-control bg-black text-white border-secondary">
+                    </div>
+                    <div class="mb-3">
+                        <label class="small text-muted mb-1">Opsioni 1</label>
+                        <input type="text" id="poll-opt1" class="form-control bg-black text-white border-secondary mb-2">
+                        <label class="small text-muted mb-1">Opsioni 2</label>
+                        <input type="text" id="poll-opt2" class="form-control bg-black text-white border-secondary">
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button onclick="createPoll()" class="btn btn-primary w-100 fw-bold">KRIJO SONDAZHIN</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         function showHelp() {
-            alert("Aksesimi:\n1. Shkruaj emrin tënd.\n2. Fjalëkalimi është: 1234\n3. Kopjo ID-në tënde dhe dërgoja partnerit.");
+            alert("Udhëzuesi i NextMeet:\n\n1. Shkruani emrin dhe fjalëkalimin (1234).\n2. Kopjoni ID-në tuaj nga lart dhe dërgojani partnerit.\n3. Ose shkruani ID-në e partnerit dhe klikoni 'LIDHU'.\n4. Whiteboard & Captions janë opsione Pro.");
         }
     </script>
     <script src="zoom/zoom.js?v=2.2"></script>
