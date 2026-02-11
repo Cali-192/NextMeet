@@ -7,8 +7,7 @@
     
     <link rel="icon" type="image/svg+xml" href="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/solid/bolt.svg">
     <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/solid/bolt.svg">
-    <link rel="manifest" href="zoom/manifest.json">
-
+    
     <meta name="theme-color" content="#000000">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -19,7 +18,6 @@
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation"></script>
     
-    <link rel="stylesheet" href="zoom/zoom.css">
     <style>
         html, body {
             height: 100%;
@@ -30,7 +28,6 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
 
-        /* FIX: Placeholder visibility */
         ::placeholder {
             color: rgba(255, 255, 255, 0.6) !important;
             opacity: 1;
@@ -45,6 +42,7 @@
             z-index: 100000;
             background: radial-gradient(circle at center, #1a1a1a 0%, #000000 100%);
             padding: 20px;
+            transition: opacity 0.5s ease;
         }
 
         .auth-card {
@@ -56,46 +54,18 @@
             backdrop-filter: blur(15px);
         }
 
-        /* FIX: Reaction Animation */
+        /* Reaksionet */
         .reaction-animate {
             position: absolute;
             font-size: 2.5rem;
             pointer-events: none;
-            animation: flyUp 2s ease-out forwards;
+            animation: flyUp 2.5s ease-out forwards;
             z-index: 2000;
-            left: 50%;
-            top: 50%;
         }
 
         @keyframes flyUp {
-            0% { transform: translate(-50%, 0) scale(1); opacity: 1; }
-            100% { transform: translate(-50%, -250px) scale(1.5); opacity: 0; }
-        }
-
-        .visible-slogan {
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 0.85rem;
-        }
-
-        .visible-version {
-            color: rgba(255, 255, 255, 0.5);
-            font-weight: bold;
-        }
-
-        #emoji-rain-container {
-            position: fixed;
-            inset: 0;
-            pointer-events: none;
-            z-index: 9999;
-        }
-
-        .shadow-primary {
-            box-shadow: 0 0 25px rgba(13, 110, 253, 0.5);
-        }
-
-        .participant-item {
-            background: rgba(255, 255, 255, 0.05);
-            transition: all 0.2s ease;
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-300px) scale(1.8); opacity: 0; }
         }
 
         .video-item {
@@ -105,25 +75,16 @@
             overflow: hidden;
             flex: 1;
             min-width: 300px;
-            max-width: 600px;
+            max-width: 800px;
             aspect-ratio: 16/9;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
 
         video {
             width: 100%;
             height: 100%;
             object-fit: cover;
-        }
-
-        .recording-active {
-            background-color: #dc3545 !important;
-            animation: pulse-red 1.5s infinite;
-        }
-
-        @keyframes pulse-red {
-            0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+            border-radius: 15px;
         }
 
         #whiteboard-overlay {
@@ -138,25 +99,30 @@
         #whiteboard-canvas {
             flex-grow: 1;
             cursor: crosshair;
+            background: #fff;
         }
 
-        #caption-box {
-            position: absolute;
-            bottom: 100px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 1050;
-            width: 80%;
-            text-align: center;
-            pointer-events: none;
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #00e676;
+            box-shadow: 0 0 8px #00e676;
         }
 
-        #caption-text {
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 5px 15px;
-            border-radius: 10px;
-            display: inline-block;
+        /* Chat Styles */
+        .chat-message {
+            background: rgba(255,255,255,0.1);
+            margin-bottom: 10px;
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+        }
+        .chat-message .user {
+            display: block;
+            font-weight: bold;
+            color: #0d6efd;
+            font-size: 0.75rem;
+            text-transform: uppercase;
         }
     </style>
 </head>
@@ -165,54 +131,42 @@
     <div id="auth-overlay">
         <div class="card auth-card shadow-lg p-4 p-md-5">
             <div class="text-center mb-4">
-                <div class="logo-icon bg-primary rounded-4 mx-auto mb-3 d-flex align-items-center justify-content-center shadow-primary" style="width: 65px; height: 65px;">
+                <div class="bg-primary rounded-4 mx-auto mb-3 d-flex align-items-center justify-content-center shadow-lg" style="width: 65px; height: 65px;">
                     <i class="fas fa-bolt text-white fa-2x"></i>
                 </div>
-                <h2 class="fw-bold text-white mb-1" style="letter-spacing: -1.5px;">Next<span class="text-primary">Meet</span></h2>
-                <p class="visible-slogan">Siguri e lartë dhe performancë maksimale</p>
+                <h2 class="fw-bold text-white mb-1">Next<span class="text-primary">Meet</span></h2>
+                <p class="text-secondary small">Siguri e lartë dhe performancë maksimale</p>
             </div>
             
-            <div class="auth-body">
-                <form onsubmit="event.preventDefault(); startMeeting();">
-                    <div class="mb-3">
-                        <label class="form-label small text-uppercase fw-bold text-secondary" style="font-size: 10px;">Emri i Përdoruesit</label>
-                        <div class="input-group bg-black rounded-3 border border-secondary border-opacity-50">
-                            <span class="input-group-text bg-transparent border-0 text-secondary"><i class="fas fa-user"></i></span>
-                            <input type="text" id="user-name-input" class="form-control bg-transparent text-white border-0 shadow-none py-2" placeholder="Shkruaj emrin tënd..." required>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-4">
-                        <label class="form-label small text-uppercase fw-bold text-secondary" style="font-size: 10px;">Fjalëkalimi i Aksesit (1234)</label>
-                        <div class="input-group bg-black rounded-3 border border-secondary border-opacity-50">
-                            <span class="input-group-text bg-transparent border-0 text-secondary"><i class="fas fa-lock"></i></span>
-                            <input type="password" id="meeting-pass-input" class="form-control bg-transparent text-white border-0 shadow-none py-2" placeholder="••••" required>
-                        </div>
-                    </div>
-                    
-                    <button type="submit" id="start-btn" class="btn btn-primary w-100 fw-bold py-3 rounded-pill shadow-sm">
-                        HYR NË TAKIM <i class="fas fa-arrow-right ms-2"></i>
-                    </button>
-                </form>
-                
-                <div class="mt-4 text-center">
-                    <div class="d-flex align-items-center justify-content-center gap-3">
-                        <span class="small visible-version">v4.2 Pro</span>
-                        <span class="text-secondary">|</span>
-                        <a href="javascript:void(0)" onclick="showHelp()" class="small text-primary text-decoration-none fw-bold">Ndihmë?</a>
+            <form onsubmit="event.preventDefault(); startMeeting();">
+                <div class="mb-3">
+                    <label class="form-label small text-uppercase fw-bold text-secondary">Emri i Përdoruesit</label>
+                    <div class="input-group bg-black rounded-3 border border-secondary border-opacity-50">
+                        <span class="input-group-text bg-transparent border-0 text-secondary"><i class="fas fa-user"></i></span>
+                        <input type="text" id="user-name-input" class="form-control bg-transparent text-white border-0 shadow-none py-2" placeholder="Emri juaj..." required>
                     </div>
                 </div>
-            </div>
+                
+                <div class="mb-4">
+                    <label class="form-label small text-uppercase fw-bold text-secondary">Fjalëkalimi (1234)</label>
+                    <div class="input-group bg-black rounded-3 border border-secondary border-opacity-50">
+                        <span class="input-group-text bg-transparent border-0 text-secondary"><i class="fas fa-lock"></i></span>
+                        <input type="password" id="meeting-pass-input" class="form-control bg-transparent text-white border-0 shadow-none py-2" placeholder="••••" required>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary w-100 fw-bold py-3 rounded-pill">
+                    HYR NË TAKIM <i class="fas fa-arrow-right ms-2"></i>
+                </button>
+            </form>
         </div>
     </div>
 
-    <div id="emoji-rain-container"></div>
-
     <div id="whiteboard-overlay">
         <div class="bg-dark p-2 d-flex justify-content-between align-items-center">
-            <span class="text-white small fw-bold ms-2">Whiteboard Bashkëpunues</span>
+            <span class="text-white small fw-bold ms-2 text-uppercase">Whiteboard Bashkëpunues</span>
             <div class="d-flex gap-2">
-                <input type="color" id="wb-color" class="form-control form-control-sm border-0" style="width: 40px; height: 30px; padding: 2px;" value="#0d6efd">
+                <input type="color" id="wb-color" class="form-control form-control-sm" style="width: 40px;" value="#0d6efd">
                 <button onclick="clearWhiteboard()" class="btn btn-sm btn-outline-light"><i class="fas fa-eraser"></i></button>
                 <button onclick="toggleWhiteboard()" class="btn btn-sm btn-danger"><i class="fas fa-times"></i></button>
             </div>
@@ -220,47 +174,43 @@
         <canvas id="whiteboard-canvas"></canvas>
     </div>
 
-    <div id="caption-box" class="d-none">
-        <div id="caption-text">Duke dëgjuar...</div>
-    </div>
-
     <div class="main-wrapper d-flex flex-column vh-100">
         
-        <header class="navbar navbar-dark bg-black border-bottom border-secondary px-4 py-2 shadow-sm">
+        <header class="navbar navbar-dark bg-black border-bottom border-secondary px-4 py-2">
             <div class="d-flex align-items-center">
-                <div class="logo-icon bg-primary rounded-3 me-2 d-flex align-items-center justify-content-center" style="width: 35px; height: 35px; box-shadow: 0 0 15px rgba(13, 110, 253, 0.4);">
+                <div class="bg-primary rounded-3 me-2 d-flex align-items-center justify-content-center" style="width: 35px; height: 35px;">
                     <i class="fas fa-bolt text-white"></i>
                 </div>
-                <span class="fw-bold fs-4 tracking-tight" style="letter-spacing: -1px;">Next<span class="text-primary">Meet</span></span>
+                <span class="fw-bold fs-4">Next<span class="text-primary">Meet</span></span>
                 
-                <div id="network-status" class="ms-4 d-flex align-items-center bg-dark border border-secondary rounded-pill px-3 py-1 d-none d-md-flex">
-                    <div id="network-dot" class="rounded-circle me-2" style="width: 8px; height: 8px; background-color: #00e676; box-shadow: 0 0 8px #00e676;"></div>
-                    <span class="small fw-medium text-white" id="network-text">Lidhja: Super</span>
+                <div class="ms-4 d-flex align-items-center bg-dark border border-secondary rounded-pill px-3 py-1">
+                    <div class="status-dot rounded-circle me-2"></div>
+                    <span class="small fw-medium" id="network-text">LIDHJA: SUPER</span>
                 </div>
             </div>
 
-            <div class="d-flex align-items-center bg-dark rounded-pill px-3 py-1 border border-secondary shadow-sm mx-2">
-                <span class="text-secondary small me-2 d-none d-sm-inline">ID:</span>
-                <code id="my-id" class="text-info me-2 fw-bold">Duke u lidhur...</code>
+            <div class="d-flex align-items-center bg-dark rounded-pill px-3 py-1 border border-secondary">
+                <span class="text-secondary small me-2">ID:</span>
+                <code id="my-id" class="text-info me-2 fw-bold">...</code>
                 <button onclick="copyMyId()" class="btn btn-sm btn-link text-white p-0"><i class="far fa-copy"></i></button>
             </div>
 
-            <div class="d-flex gap-2 align-items-center">
-                <input type="text" id="remote-id-input" class="form-control form-control-sm bg-black text-white border-secondary shadow-none d-none d-md-block" style="width: 130px;" placeholder="ID e Partnerit">
-                <button id="connect-btn" class="btn btn-primary btn-sm px-4 rounded-pill shadow fw-bold">LIDHU</button>
+            <div class="d-flex gap-2">
+                <input type="text" id="remote-id-input" class="form-control form-control-sm bg-black text-white border-secondary" style="width: 140px;" placeholder="ID e Partnerit">
+                <button id="connect-btn" class="btn btn-primary btn-sm px-4 rounded-pill fw-bold">LIDHU</button>
             </div>
         </header>
 
         <div class="d-flex flex-grow-1 overflow-hidden position-relative">
             
-            <aside id="participants-panel" class="bg-black border-end border-secondary d-flex flex-column shadow-lg d-none d-lg-flex" style="width: 250px;">
-                <div class="p-3 border-bottom border-secondary bg-dark">
-                    <h6 class="mb-0 fw-bold small text-uppercase tracking-wider text-secondary">Pjesëmarrësit</h6>
+            <aside id="participants-panel" class="bg-black border-end border-secondary d-none flex-column" style="width: 250px;">
+                <div class="p-3 border-bottom border-secondary">
+                    <h6 class="mb-0 small fw-bold text-uppercase text-secondary">Pjesëmarrësit</h6>
                 </div>
-                <div id="participants-list" class="flex-grow-1 p-2 overflow-auto">
-                    <div class="participant-item d-flex align-items-center p-2 mb-1 rounded" id="local-participant">
-                        <div class="avatar-sm bg-primary rounded-circle me-2 d-flex align-items-center justify-content-center small fw-bold text-white" style="width:30px; height:30px;">TI</div>
-                        <span class="flex-grow-1 small" id="local-participant-name">Ti (Moderator)</span>
+                <div id="participants-list" class="flex-grow-1 p-2">
+                    <div class="participant-item d-flex align-items-center p-2 mb-1 rounded bg-secondary bg-opacity-10">
+                        <div class="avatar-sm bg-primary rounded-circle me-2 d-flex align-items-center justify-content-center small fw-bold" style="width:30px; height:30px;">TI</div>
+                        <span class="small" id="local-participant-name">Ti (Moderator)</span>
                     </div>
                 </div>
             </aside>
@@ -270,7 +220,7 @@
                 <div id="lobby-modal" class="position-absolute top-0 start-50 translate-middle-x mt-3 bg-dark border border-primary p-3 rounded shadow-lg d-none" style="z-index: 2000; width: 300px;">
                     <div class="d-flex align-items-center">
                         <div class="flex-grow-1">
-                            <h6 class="mb-1 small fw-bold text-white">Kërkesë Hyrjeje</h6>
+                            <h6 class="mb-1 small fw-bold">Kërkesë Hyrjeje</h6>
                             <p class="mb-0 small text-muted">Dikush dëshiron të hyjë.</p>
                         </div>
                         <div class="d-flex gap-2">
@@ -281,32 +231,32 @@
                 </div>
 
                 <div id="video-grid" class="flex-grow-1 d-flex flex-wrap align-items-center justify-content-center p-3 gap-3 overflow-auto">
-                    <div class="video-item" id="local-wrapper">
+                    <div class="video-item">
                         <video id="local-video" autoplay muted playsinline></video>
-                        <div class="position-absolute bottom-0 start-0 p-2 w-100" style="background: linear-gradient(transparent, rgba(0,0,0,0.7));">
+                        <div class="position-absolute bottom-0 start-0 p-2 w-100" style="background: linear-gradient(transparent, rgba(0,0,0,0.8));">
                             <span class="small fw-bold" id="local-name-display">Ti</span>
                         </div>
                         <div id="reaction-container-local" style="position: absolute; inset: 0; pointer-events: none;"></div>
                     </div>
                     
-                    <div class="video-item" id="remote-wrapper">
+                    <div class="video-item">
                         <video id="remote-video" autoplay playsinline></video>
-                        <div id="waiting-overlay" class="position-absolute inset-0 d-flex flex-column align-items-center justify-content-center bg-dark bg-opacity-50">
+                        <div id="waiting-overlay" class="position-absolute inset-0 d-flex flex-column align-items-center justify-content-center bg-dark">
                             <div class="spinner-border text-primary mb-2"></div>
-                            <p class="small">Duke pritur partnerin...</p>
+                            <p class="small text-secondary">Duke pritur partnerin...</p>
                         </div>
                         <div id="reaction-container-remote" style="position: absolute; inset: 0; pointer-events: none;"></div>
                     </div>
                 </div>
             </main>
 
-            <aside id="chat-panel" class="bg-black border-start border-secondary d-flex flex-column shadow-lg d-none d-md-flex" style="width: 320px;">
-                <div class="p-3 border-bottom border-secondary bg-dark">
-                    <h6 class="mb-0 fw-bold small text-uppercase tracking-wider">Biseda Live</h6>
+            <aside id="chat-panel" class="bg-black border-start border-secondary d-none flex-column" style="width: 320px;">
+                <div class="p-3 border-bottom border-secondary">
+                    <h6 class="mb-0 small fw-bold text-uppercase">Biseda Live</h6>
                 </div>
                 <div id="chat-messages" class="flex-grow-1 p-3 overflow-auto"></div>
-                <div class="p-3 border-top border-secondary bg-dark">
-                    <div class="input-group bg-black rounded-pill p-1 border border-secondary">
+                <div class="p-3 border-top border-secondary">
+                    <div class="input-group bg-dark rounded-pill p-1 border border-secondary">
                         <input type="text" id="chat-input" class="form-control bg-transparent text-white border-0 shadow-none ps-3" placeholder="Shkruaj...">
                         <button id="send-chat" class="btn btn-primary rounded-circle" style="width: 35px; height: 35px;"><i class="fas fa-paper-plane"></i></button>
                     </div>
@@ -318,68 +268,28 @@
             <div class="d-flex gap-2">
                 <button id="mic-btn" onclick="toggleMic()" class="btn btn-dark rounded-circle p-3"><i class="fas fa-microphone"></i></button>
                 <button id="camera-btn" onclick="toggleCam()" class="btn btn-dark rounded-circle p-3"><i class="fas fa-video"></i></button>
-                <button id="screen-btn" onclick="toggleScreenShare()" class="btn btn-dark rounded-circle p-3" title="Shpërndaj Ekranin">
-                    <i class="fas fa-desktop"></i>
-                </button>
-                <button id="whiteboard-btn" onclick="toggleWhiteboard()" class="btn btn-dark rounded-circle p-3" title="Whiteboard">
-                    <i class="fas fa-chalkboard"></i>
-                </button>
-                <button id="blur-btn" onclick="toggleBlur()" class="btn btn-dark rounded-circle p-3" title="AI Blur Background">
-                    <i class="fas fa-user-shield"></i>
-                </button>
-                <button id="caption-btn" onclick="toggleCaptions()" class="btn btn-dark rounded-circle p-3" title="Captions (AI)">
-                    <i class="fas fa-closed-captioning"></i>
-                </button>
-                <button id="record-btn" onclick="toggleRecord()" class="btn btn-dark rounded-circle p-3 text-danger" title="Regjistro">
-                    <i class="fas fa-circle"></i>
-                </button>
+                <button id="screen-btn" onclick="toggleScreenShare()" class="btn btn-dark rounded-circle p-3"><i class="fas fa-desktop"></i></button>
+                <button id="whiteboard-btn" onclick="toggleWhiteboard()" class="btn btn-dark rounded-circle p-3"><i class="fas fa-chalkboard"></i></button>
+                <button id="participants-btn" onclick="toggleParticipants()" class="btn btn-dark rounded-circle p-3"><i class="fas fa-users"></i></button>
+                <button id="chat-btn" onclick="toggleChat()" class="btn btn-dark rounded-circle p-3"><i class="fas fa-comment-alt"></i></button>
+                <button id="blur-btn" onclick="toggleBlur()" class="btn btn-dark rounded-circle p-3"><i class="fas fa-user-shield"></i></button>
+                <button id="record-btn" onclick="toggleRecord()" class="btn btn-dark rounded-circle p-3 text-danger"><i class="fas fa-circle"></i></button>
             </div>
 
-            <div class="d-flex gap-2 gap-md-3">
+            <div class="d-flex gap-2">
                 <button onclick="sendReaction('❤️')" class="btn btn-outline-secondary rounded-circle border-0">❤️</button>
                 <button onclick="sendReaction('👏')" class="btn btn-outline-secondary rounded-circle border-0">👏</button>
                 <button onclick="sendReaction('😂')" class="btn btn-outline-secondary rounded-circle border-0">😂</button>
+                <button onclick="sendReaction('🔥')" class="btn btn-outline-secondary rounded-circle border-0">🔥</button>
             </div>
 
             <button class="btn btn-danger px-4 py-2 rounded-pill fw-bold" onclick="leaveMeeting()">
-                <span class="d-none d-sm-inline">MBYLL TAKIMIN</span>
-                <span class="d-sm-none"><i class="fas fa-phone-slash"></i></span>
+                MBYLL TAKIMIN
             </button>
         </footer>
     </div>
 
-    <div id="poll-modal" class="modal fade" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content bg-dark border-primary text-white">
-                <div class="modal-header border-secondary">
-                    <h5 class="modal-title small fw-bold text-uppercase">Sondazh i Ri</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="small text-muted mb-1">Pyetja</label>
-                        <input type="text" id="poll-question" class="form-control bg-black text-white border-secondary">
-                    </div>
-                    <div class="mb-3">
-                        <label class="small text-muted mb-1">Opsioni 1</label>
-                        <input type="text" id="poll-opt1" class="form-control bg-black text-white border-secondary mb-2">
-                        <label class="small text-muted mb-1">Opsioni 2</label>
-                        <input type="text" id="poll-opt2" class="form-control bg-black text-white border-secondary">
-                    </div>
-                </div>
-                <div class="modal-footer border-secondary">
-                    <button onclick="createPoll()" class="btn btn-primary w-100 fw-bold">KRIJO SONDAZHIN</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        function showHelp() {
-            alert("Udhëzuesi i NextMeet:\n\n1. Shkruani emrin dhe fjalëkalimin (1234).\n2. Kopjoni ID-në tuaj nga lart dhe dërgojani partnerit.\n3. Ose shkruani ID-në e partnerit dhe klikoni 'LIDHU'.\n4. Whiteboard & Captions janë opsione Pro.");
-        }
-    </script>
-    <script src="zoom/zoom.js?v=2.2"></script>
+    <script src="zoom/zoom.js"></script>
 </body>
 </html>
