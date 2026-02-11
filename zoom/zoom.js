@@ -46,13 +46,19 @@ window.startMeeting = function() {
     
     userName = emri;
     
+    // Përditëso emrin në ndërfaqe
+    const localDisplayName = document.getElementById('local-name-display');
+    const localPartName = document.getElementById('local-participant-name');
+    if (localDisplayName) localDisplayName.innerText = emri;
+    if (localPartName) localPartName.innerText = emri + " (Ti)";
+    
     // Feedback vizual
     if (loginBtn) {
         loginBtn.innerHTML = 'Duke u lidhur...';
         loginBtn.disabled = true;
     }
 
-    // RRREGULLIMI: Hiqet overlay menjëherë që të mos bllokohet faqja
+    // Hiqet overlay
     if (authOverlay) {
         authOverlay.style.display = 'none';
     }
@@ -81,7 +87,6 @@ async function initMedia() {
         if (localVideo) {
             localVideo.srcObject = stream;
             localVideo.muted = true;
-            // SHTESA: playsinline është i domosdoshëm për mobil
             localVideo.setAttribute('playsinline', 'true');
             localVideo.play().catch(e => console.error("Video Play Error:", e));
         }
@@ -95,7 +100,6 @@ async function initMedia() {
 
     } catch (err) {
         console.error("Media Error:", err);
-        // Nëse përdoruesi refuzon kamerën, prapë e lejmë të shohë takimin
         alert("Nuk u qasëm në kamerë. Sigurohu që ke dhënë leje (Allow).");
     }
 }
@@ -119,6 +123,8 @@ window.lobbyDecision = function(accepted) {
             if (remoteVideo) {
                 remoteVideo.srcObject = userStream;
                 remoteVideo.setAttribute('playsinline', 'true');
+                const waiting = document.getElementById('waiting-overlay');
+                if (waiting) waiting.classList.add('d-none');
             }
         });
 
@@ -145,6 +151,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (remoteVideo) {
                     remoteVideo.srcObject = s; 
                     remoteVideo.setAttribute('playsinline', 'true');
+                    const waiting = document.getElementById('waiting-overlay');
+                    if (waiting) waiting.classList.add('d-none');
                 }
             });
 
@@ -206,18 +214,31 @@ window.leaveMeeting = function() {
 };
 
 window.sendReaction = function(emoji) {
-    if(dataConn) dataConn.send({type: 'reaction', emoji});
+    if(dataConn && dataConn.open) {
+        dataConn.send({type: 'reaction', emoji: emoji});
+    }
     showReaction(emoji, 'local');
 };
 
 function showReaction(emoji, origin) {
     const container = document.getElementById(`reaction-container-${origin}`);
     if (!container) return;
+    
     const el = document.createElement('div');
     el.innerText = emoji;
-    el.className = 'reaction-float animate-reaction';
+    // Përdorim klasën për animacionin që fluturon
+    el.className = 'reaction-animate'; 
+    
+    // I japim një pozicion paksa random që të mos dalin fiks në një vend
+    const randomOffset = Math.floor(Math.random() * 40) - 20;
+    el.style.left = `calc(50% + ${randomOffset}px)`;
+    
     container.appendChild(el);
-    setTimeout(() => el.remove(), 2000);
+    
+    // Hiqe elementin pas animacionit (2 sekonda)
+    setTimeout(() => {
+        if (el.parentNode) el.remove();
+    }, 2000);
 }
 
 function playNotificationSound() {
