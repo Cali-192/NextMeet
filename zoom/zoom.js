@@ -1,303 +1,282 @@
-// NextMeet | Next-Gen Video Conferencing
-document.title = "NextMeet | Next-Gen Video Conferencing";
-
-// --- Variablat Globale ---
-let myStream;
-let currentPeerCall;
-let dataConn;
-let virtualBgMode = 'none';
-let pendingCall = null; 
-let userName = "Përdorues";
-let isMicOn = true;
-let isCamOn = true;
-let screenStream = null;
-
-// --- KONFIGURIMI I PEERJS ---
-const peer = new Peer(undefined, {
-    host: '0.peerjs.com',
-    secure: true,
-    port: 443,
-    debug: 1
-});
-
-// --- 1. LOGIN & HYRJA ---
-window.startMeeting = function() {
-    console.log("Tentim për login...");
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>NextMeet | Next-Gen Video Conferencing</title>
     
-    const nameInput = document.getElementById('user-name-input');
-    const passInput = document.getElementById('meeting-pass-input');
-    const authOverlay = document.getElementById('auth-overlay');
-    const loginBtn = document.getElementById('start-btn'); 
+    <link rel="icon" type="image/svg+xml" href="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/solid/bolt.svg">
+    <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/solid/bolt.svg">
+    <link rel="manifest" href="zoom/manifest.json">
+
+    <meta name="theme-color" content="#000000">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    if (!nameInput || !passInput) {
-        console.error("Elementet e loginit nuk u gjetën në DOM!");
-        return;
-    }
-
-    const emri = nameInput.value.trim();
-    const pass = passInput.value.trim();
-
-    if (!emri) {
-        alert("Ju lutem shkruani emrin!");
-        return;
-    }
-
-    if (pass !== "1234") {
-        alert("Fjalëkalimi i pasaktë!");
-        return;
-    }
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation"></script>
     
-    userName = emri;
-    
-    // Përditëso emrin në ndërfaqe
-    const localDisplayName = document.getElementById('local-name-display');
-    const localPartName = document.getElementById('local-participant-name');
-    if (localDisplayName) localDisplayName.innerText = emri;
-    if (localPartName) localPartName.innerText = emri + " (Ti)";
-    
-    // Feedback vizual
-    if (loginBtn) {
-        loginBtn.innerHTML = 'Duke u lidhur...';
-        loginBtn.disabled = true;
-    }
-
-    // Hiqet overlay
-    if (authOverlay) {
-        authOverlay.style.display = 'none';
-    }
-
-    // Aktivizimi i audios për mobil
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (AudioContext) {
-        const audioCtx = new AudioContext();
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-    }
-
-    // Nis median
-    initMedia();
-};
-
-// --- 2. Kamera dhe Mikrofoni ---
-async function initMedia() {
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: true, 
-            audio: true 
-        });
-        
-        myStream = stream;
-        const localVideo = document.getElementById('local-video');
-        if (localVideo) {
-            localVideo.srcObject = stream;
-            localVideo.muted = true;
-            localVideo.setAttribute('playsinline', 'true');
-            localVideo.play().catch(e => console.error("Video Play Error:", e));
+    <link rel="stylesheet" href="zoom/zoom.css">
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden; 
+            background-color: #000;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
-        
-        peer.on('call', call => {
-            pendingCall = call;
-            const lobby = document.getElementById('lobby-modal');
-            if (lobby) lobby.classList.remove('d-none');
-            playNotificationSound(); 
-        });
 
-    } catch (err) {
-        console.error("Media Error:", err);
-        alert("Nuk u qasëm në kamerë. Sigurohu që ke dhënë leje (Allow).");
-    }
-}
+        #auth-overlay {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100000;
+            background: radial-gradient(circle at center, #1a1a1a 0%, #000000 100%);
+            padding: 20px;
+        }
 
-// --- 3. PeerJS Setup ---
-peer.on('open', id => {
-    const myIdDisplay = document.getElementById('my-id');
-    if (myIdDisplay) myIdDisplay.innerText = id;
-});
+        .auth-card {
+            border: 1px solid rgba(255,255,255,0.2);
+            max-width: 100%;
+            width: 420px;
+            background: rgba(20, 20, 20, 0.95);
+            border-radius: 25px;
+            backdrop-filter: blur(15px);
+        }
 
-window.lobbyDecision = function(accepted) {
-    const lobby = document.getElementById('lobby-modal');
-    if (lobby) lobby.classList.add('d-none');
-    
-    if (accepted && pendingCall) {
-        pendingCall.answer(myStream);
-        currentPeerCall = pendingCall;
-        
-        pendingCall.on('stream', userStream => {
-            const remoteVideo = document.getElementById('remote-video');
-            if (remoteVideo) {
-                remoteVideo.srcObject = userStream;
-                remoteVideo.setAttribute('playsinline', 'true');
-                const waiting = document.getElementById('waiting-overlay');
-                if (waiting) waiting.classList.add('d-none');
-            }
-        });
+        .visible-slogan {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.85rem;
+        }
 
-        dataConn = peer.connect(pendingCall.peer);
-        setupDataListeners();
-    }
-};
+        .visible-version {
+            color: rgba(255, 255, 255, 0.5);
+            font-weight: bold;
+        }
 
-// --- 4. Inicializimi i Eventeve & Kontrollet ---
-document.addEventListener('DOMContentLoaded', () => {
-    
-    // Butoni Connect
-    const connectBtn = document.getElementById('connect-btn');
-    if (connectBtn) {
-        connectBtn.onclick = () => {
-            const remoteIdInput = document.getElementById('remote-id-input');
-            const id = remoteIdInput ? remoteIdInput.value.trim() : null;
-            if (!id) return alert("Shkruaj ID-në!");
+        #emoji-rain-container {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        .shadow-primary {
+            box-shadow: 0 0 25px rgba(13, 110, 253, 0.5);
+        }
+
+        .participant-item {
+            background: rgba(255, 255, 255, 0.05);
+            transition: all 0.2s ease;
+        }
+
+        .video-item {
+            position: relative;
+            background: #111;
+            border-radius: 15px;
+            overflow: hidden;
+            flex: 1;
+            min-width: 300px;
+            max-width: 600px;
+            aspect-ratio: 16/9;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Klasa për butonin Record kur është aktiv */
+        .recording-active {
+            background-color: #dc3545 !important;
+            animation: pulse-red 1.5s infinite;
+        }
+
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+        }
+    </style>
+</head>
+<body class="bg-dark text-white">
+
+    <div id="auth-overlay">
+        <div class="card auth-card shadow-lg p-4 p-md-5">
+            <div class="text-center mb-4">
+                <div class="logo-icon bg-primary rounded-4 mx-auto mb-3 d-flex align-items-center justify-content-center shadow-primary" style="width: 65px; height: 65px;">
+                    <i class="fas fa-bolt text-white fa-2x"></i>
+                </div>
+                <h2 class="fw-bold text-white mb-1" style="letter-spacing: -1.5px;">Next<span class="text-primary">Meet</span></h2>
+                <p class="visible-slogan">Siguri e lartë dhe performancë maksimale</p>
+            </div>
             
-            const call = peer.call(id, myStream);
-            currentPeerCall = call;
-            
-            call.on('stream', s => { 
-                const remoteVideo = document.getElementById('remote-video');
-                if (remoteVideo) {
-                    remoteVideo.srcObject = s; 
-                    remoteVideo.setAttribute('playsinline', 'true');
-                    const waiting = document.getElementById('waiting-overlay');
-                    if (waiting) waiting.classList.add('d-none');
-                }
-            });
-
-            dataConn = peer.connect(id);
-            setupDataListeners();
-        };
-    }
-
-    // Butoni i Chat-it
-    const sendChat = document.getElementById('send-chat');
-    if (sendChat) {
-        sendChat.onclick = () => {
-            const chatInput = document.getElementById('chat-input');
-            if(!chatInput || !chatInput.value.trim()) return;
-            appendMessage(chatInput.value, 'self');
-            if(dataConn) dataConn.send({type: 'chat', msg: chatInput.value});
-            chatInput.value = "";
-        };
-    }
-
-    // --- Kontrollet e Butonave (Mic, Cam, Screen) ---
-    
-    // Mute/Unmute
-    window.toggleMic = function() {
-        if (!myStream) return;
-        isMicOn = !isMicOn;
-        myStream.getAudioTracks()[0].enabled = isMicOn;
-        const btn = document.getElementById('mic-btn');
-        btn.classList.toggle('btn-danger', !isMicOn);
-        btn.innerHTML = isMicOn ? '<i class="fas fa-microphone"></i>' : '<i class="fas fa-microphone-slash"></i>';
-    };
-
-    // Camera On/Off
-    window.toggleCam = function() {
-        if (!myStream) return;
-        isCamOn = !isCamOn;
-        myStream.getVideoTracks()[0].enabled = isCamOn;
-        const btn = document.getElementById('camera-btn');
-        btn.classList.toggle('btn-danger', !isCamOn);
-        btn.innerHTML = isCamOn ? '<i class="fas fa-video"></i>' : '<i class="fas fa-video-slash"></i>';
-    };
-
-    // Screen Share
-    window.toggleScreenShare = async function() {
-        try {
-            if (!screenStream) {
-                screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-                const videoTrack = screenStream.getVideoTracks()[0];
+            <div class="auth-body">
+                <form onsubmit="event.preventDefault(); startMeeting();">
+                    <div class="mb-3">
+                        <label class="form-label small text-uppercase fw-bold text-secondary" style="font-size: 10px;">Emri i Përdoruesit</label>
+                        <div class="input-group bg-black rounded-3 border border-secondary border-opacity-50">
+                            <span class="input-group-text bg-transparent border-0 text-secondary"><i class="fas fa-user"></i></span>
+                            <input type="text" id="user-name-input" class="form-control bg-transparent text-white border-0 shadow-none py-2" placeholder="Shkruaj emrin tënd..." required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label small text-uppercase fw-bold text-secondary" style="font-size: 10px;">Fjalëkalimi i Aksesit (1234)</label>
+                        <div class="input-group bg-black rounded-3 border border-secondary border-opacity-50">
+                            <span class="input-group-text bg-transparent border-0 text-secondary"><i class="fas fa-lock"></i></span>
+                            <input type="password" id="meeting-pass-input" class="form-control bg-transparent text-white border-0 shadow-none py-2" placeholder="••••" required>
+                        </div>
+                    </div>
+                    
+                    <button type="button" id="start-btn" onclick="startMeeting()" class="btn btn-primary w-100 fw-bold py-3 rounded-pill shadow-sm">
+                        HYR NË TAKIM <i class="fas fa-arrow-right ms-2"></i>
+                    </button>
+                </form>
                 
-                // Zëvendëso track-un te thirrja aktive
-                if (currentPeerCall) {
-                    const sender = currentPeerCall.peerConnection.getSenders().find(s => s.track.kind === 'video');
-                    sender.replaceTrack(videoTrack);
-                }
-                
-                document.getElementById('local-video').srcObject = screenStream;
-                
-                videoTrack.onended = () => stopScreenShare();
-            } else {
-                stopScreenShare();
-            }
-        } catch (err) {
-            console.error("Screen Share Error:", err);
-        }
-    };
+                <div class="mt-4 text-center">
+                    <div class="d-flex align-items-center justify-content-center gap-3">
+                        <span class="small visible-version">v4.2 Pro</span>
+                        <span class="text-secondary">|</span>
+                        <a href="javascript:void(0)" onclick="showHelp()" class="small text-primary text-decoration-none fw-bold">Ndihmë?</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    function stopScreenShare() {
-        if (!screenStream) return;
-        screenStream.getTracks().forEach(track => track.stop());
-        screenStream = null;
+    <div id="emoji-rain-container"></div>
+
+    <div class="main-wrapper d-flex flex-column vh-100">
         
-        const videoTrack = myStream.getVideoTracks()[0];
-        if (currentPeerCall) {
-            const sender = currentPeerCall.peerConnection.getSenders().find(s => s.track.kind === 'video');
-            sender.replaceTrack(videoTrack);
+        <header class="navbar navbar-dark bg-black border-bottom border-secondary px-4 py-2 shadow-sm">
+            <div class="d-flex align-items-center">
+                <div class="logo-icon bg-primary rounded-3 me-2 d-flex align-items-center justify-content-center" style="width: 35px; height: 35px; box-shadow: 0 0 15px rgba(13, 110, 253, 0.4);">
+                    <i class="fas fa-bolt text-white"></i>
+                </div>
+                <span class="fw-bold fs-4 tracking-tight" style="letter-spacing: -1px;">Next<span class="text-primary">Meet</span></span>
+                
+                <div id="network-status" class="ms-4 d-flex align-items-center bg-dark border border-secondary rounded-pill px-3 py-1 d-none d-md-flex">
+                    <div id="network-dot" class="rounded-circle me-2" style="width: 8px; height: 8px; background-color: #00e676; box-shadow: 0 0 8px #00e676;"></div>
+                    <span class="small fw-medium text-white" id="network-text">Lidhja: Super</span>
+                </div>
+            </div>
+
+            <div class="d-flex align-items-center bg-dark rounded-pill px-3 py-1 border border-secondary shadow-sm mx-2">
+                <span class="text-secondary small me-2 d-none d-sm-inline">ID:</span>
+                <code id="my-id" class="text-info me-2 fw-bold">Duke u lidhur...</code>
+                <button onclick="copyMyId()" class="btn btn-sm btn-link text-white p-0"><i class="far fa-copy"></i></button>
+            </div>
+
+            <div class="d-flex gap-2 align-items-center">
+                <input type="text" id="remote-id-input" class="form-control form-control-sm bg-black text-white border-secondary shadow-none d-none d-md-block" style="width: 130px;" placeholder="ID e Partnerit">
+                <button id="connect-btn" class="btn btn-primary btn-sm px-4 rounded-pill shadow fw-bold">LIDHU</button>
+            </div>
+        </header>
+
+        <div class="d-flex flex-grow-1 overflow-hidden position-relative">
+            
+            <aside id="participants-panel" class="bg-black border-end border-secondary d-flex flex-column shadow-lg d-none d-lg-flex" style="width: 250px;">
+                <div class="p-3 border-bottom border-secondary bg-dark">
+                    <h6 class="mb-0 fw-bold small text-uppercase tracking-wider text-secondary">Pjesëmarrësit</h6>
+                </div>
+                <div id="participants-list" class="flex-grow-1 p-2 overflow-auto">
+                    <div class="participant-item d-flex align-items-center p-2 mb-1 rounded" id="local-participant">
+                        <div class="avatar-sm bg-primary rounded-circle me-2 d-flex align-items-center justify-content-center small fw-bold text-white" style="width:30px; height:30px;">TI</div>
+                        <span class="flex-grow-1 small" id="local-participant-name">Ti (Moderator)</span>
+                    </div>
+                </div>
+            </aside>
+
+            <main class="flex-grow-1 d-flex flex-column position-relative bg-black">
+                <div id="lobby-modal" class="position-absolute top-0 start-50 translate-middle-x mt-3 bg-dark border border-primary p-3 rounded shadow-lg d-none" style="z-index: 2000; width: 300px;">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1 small fw-bold text-white">Kërkesë Hyrjeje</h6>
+                            <p class="mb-0 small text-muted">Dikush dëshiron të hyjë.</p>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button onclick="lobbyDecision(true)" class="btn btn-sm btn-success rounded-circle"><i class="fas fa-check"></i></button>
+                            <button onclick="lobbyDecision(false)" class="btn btn-sm btn-danger rounded-circle"><i class="fas fa-times"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="video-grid" class="flex-grow-1 d-flex flex-wrap align-items-center justify-content-center p-3 gap-3 overflow-auto">
+                    <div class="video-item" id="local-wrapper">
+                        <video id="local-video" autoplay muted playsinline></video>
+                        <div class="position-absolute bottom-0 start-0 p-2 w-100" style="background: linear-gradient(transparent, rgba(0,0,0,0.7));">
+                            <span class="small fw-bold" id="local-name-display">Ti</span>
+                        </div>
+                        <div id="reaction-container-local" class="position-absolute top-50 start-50 translate-middle"></div>
+                    </div>
+                    
+                    <div class="video-item" id="remote-wrapper">
+                        <video id="remote-video" autoplay playsinline></video>
+                        <div id="waiting-overlay" class="position-absolute inset-0 d-flex flex-column align-items-center justify-content-center bg-dark bg-opacity-50">
+                            <div class="spinner-border text-primary mb-2"></div>
+                            <p class="small">Duke pritur partnerin...</p>
+                        </div>
+                        <div id="reaction-container-remote" class="position-absolute top-50 start-50 translate-middle"></div>
+                    </div>
+                </div>
+            </main>
+
+            <aside id="chat-panel" class="bg-black border-start border-secondary d-flex flex-column shadow-lg d-none d-md-flex" style="width: 320px;">
+                <div class="p-3 border-bottom border-secondary bg-dark">
+                    <h6 class="mb-0 fw-bold small text-uppercase tracking-wider">Biseda Live</h6>
+                </div>
+                <div id="chat-messages" class="flex-grow-1 p-3 overflow-auto"></div>
+                <div class="p-3 border-top border-secondary bg-dark">
+                    <div class="input-group bg-black rounded-pill p-1 border border-secondary">
+                        <input type="text" id="chat-input" class="form-control bg-transparent text-white border-0 shadow-none ps-3" placeholder="Shkruaj...">
+                        <button id="send-chat" class="btn btn-primary rounded-circle" style="width: 35px; height: 35px;"><i class="fas fa-paper-plane"></i></button>
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+        <footer class="controls-bar d-flex justify-content-between align-items-center bg-black border-top border-secondary px-4 py-3">
+            <div class="d-flex gap-2">
+                <button id="mic-btn" class="btn btn-dark rounded-circle p-3"><i class="fas fa-microphone"></i></button>
+                <button id="camera-btn" class="btn btn-dark rounded-circle p-3"><i class="fas fa-video"></i></button>
+                <button id="screen-btn" onclick="toggleScreenShare()" class="btn btn-dark rounded-circle p-3" title="Shpërndaj Ekranin">
+                    <i class="fas fa-desktop"></i>
+                </button>
+                <button id="blur-btn" onclick="toggleBlur()" class="btn btn-dark rounded-circle p-3" title="AI Blur Background">
+                    <i class="fas fa-user-shield"></i>
+                </button>
+                <button id="record-btn" onclick="toggleRecord()" class="btn btn-dark rounded-circle p-3 text-danger" title="Regjistro">
+                    <i class="fas fa-circle"></i>
+                </button>
+            </div>
+
+            <div class="d-flex gap-2 gap-md-3">
+                <button onclick="sendReaction('❤️')" class="btn btn-outline-secondary rounded-circle border-0">❤️</button>
+                <button onclick="sendReaction('👏')" class="btn btn-outline-secondary rounded-circle border-0">👏</button>
+                <button onclick="sendReaction('😂')" class="btn btn-outline-secondary rounded-circle border-0">😂</button>
+            </div>
+
+            <button class="btn btn-danger px-4 py-2 rounded-pill fw-bold" onclick="leaveMeeting()">
+                <span class="d-none d-sm-inline">MBYLL TAKIMIN</span>
+                <span class="d-sm-none"><i class="fas fa-phone-slash"></i></span>
+            </button>
+        </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function showHelp() {
+            alert("Aksesimi:\n1. Shkruaj emrin tënd.\n2. Fjalëkalimi është: 1234\n3. Kopjo ID-në tënde dhe dërgoja partnerit.");
         }
-        document.getElementById('local-video').srcObject = myStream;
-    }
-});
-
-function setupDataListeners() {
-    if(!dataConn) return;
-    dataConn.on('data', data => {
-        if (data.type === 'chat') appendMessage(data.msg, 'remote');
-        if (data.type === 'reaction') showReaction(data.emoji, 'remote');
-    });
-}
-
-function appendMessage(msg, sender) {
-    const chatMessages = document.getElementById('chat-messages');
-    if (!chatMessages) return;
-    const div = document.createElement('div');
-    div.className = `message ${sender === 'self' ? 'msg-self' : 'msg-remote'} mb-2 p-2 rounded shadow-sm`;
-    div.innerText = msg;
-    chatMessages.appendChild(div);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-}
-
-// --- 5. Kontrollet e tjera ---
-window.copyMyId = function() { 
-    const myIdEl = document.getElementById('my-id');
-    if (!myIdEl) return;
-    const id = myIdEl.innerText;
-    navigator.clipboard.writeText(id).then(() => {
-        alert("ID u kopjua!");
-    });
-};
-
-window.leaveMeeting = function() { 
-    if(confirm("Dëshiron të largohesh?")) location.reload(); 
-};
-
-window.sendReaction = function(emoji) {
-    if(dataConn && dataConn.open) {
-        dataConn.send({type: 'reaction', emoji: emoji});
-    }
-    showReaction(emoji, 'local');
-};
-
-function showReaction(emoji, origin) {
-    const container = document.getElementById(`reaction-container-${origin}`);
-    if (!container) return;
-    
-    const el = document.createElement('div');
-    el.innerText = emoji;
-    el.className = 'reaction-animate'; 
-    
-    const randomOffset = Math.floor(Math.random() * 40) - 20;
-    el.style.left = `calc(50% + ${randomOffset}px)`;
-    
-    container.appendChild(el);
-    setTimeout(() => { if (el.parentNode) el.remove(); }, 2000);
-}
-
-function playNotificationSound() {
-    try {
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        const context = new AudioContext();
-        const osc = context.createOscillator();
-        osc.connect(context.destination);
-        osc.start();
-        osc.stop(context.currentTime + 0.1);
-    } catch(e) {}
-}
+    </script>
+    <script src="zoom/zoom.js?v=2.2"></script>
+</body>
+</html>
